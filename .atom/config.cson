@@ -1,0 +1,10 @@
+"*":
+  editor:
+    fontSize: 12
+  "exception-reporting":
+    userId: "702412c8-e0ca-d7f6-4d8b-8f246ecdd177"
+  "sync-settings":
+    gistId: "dccb00a49bb821c1c257762a43d2213a"
+    personalAccessToken: "5914f79904ddac471993e73ef03e728cf3aa4553"
+  welcome:
+    showOnStartup: false
