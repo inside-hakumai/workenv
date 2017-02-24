@@ -1,0 +1,9 @@
+# added manually
+
+*~
+.DS_Store
+\#*#
+npm-debug.log
+.#*
+.vscode
+.idea
