@@ -1,3 +1,5 @@
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
+
 # 言語設定
 export LANG=ja_JP.UTF-8
 
@@ -62,7 +64,7 @@ export PATH=$PATH:~/.composer/vendor/bin
 export localhost=/usr/local/var/www/htdocs
 export class=~/Dropbox/Documents/15/
 powerline-daemon -q
-. ~/Library/Python/2.7/lib/python/site-packages/powerline/bindings/zsh/powerline.zsh
+. $POWERLINE_ROOT/bindings/zsh/powerline.zsh
 
 export PATH=$PATH:~/bin
 
