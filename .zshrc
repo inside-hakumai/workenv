@@ -54,7 +54,7 @@ setopt interactive_comments
 ## 以下、手動で追記
 
 alias ls='ls -G'
-cdl() { cd $1 && ls -la .;}
+cdl() { builtin cd $1 && ls -la .;}
 alias cd='cdl'
 zstyle ':completion:*' list-colors 'di=32'
 
