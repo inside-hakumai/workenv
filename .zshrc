@@ -1,90 +1,71 @@
+# local .zshrc file
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
-# 言語設定
+# aliases
+alias o='open'
+alias e='emacs'
+alias eamcs='emacs'
+alias -g L='| less'
+alias -g G='| grep'
+alias ls='ls -G'
+alias rm='trash'
+
+# cd and ls
+cdl() { builtin cd $1 && ls -la .;}
+alias cd='cdl'
+
+# language configuration
 export LANG=ja_JP.UTF-8
 
-# NODE_PATHの設定
+# NODE_PATH configuration
 export NODE_PATH=/usr/local/lib/node_modules
 
-# JAVA_HOMEの設定
+# JAVA_HOME configuration
 export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
 
-# 補完機能を有効にする
+# enable complementation function
 autoload -Uz compinit
 compinit
 
-# cd したら自動的にpushdする
+# not distinguish between capital letters and small letter at complementation
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+
+# automatically doing a pushd at cd 
 setopt auto_pushd
-# 重複したディレクトリを追加しない
+# eliminate directory duplication
 setopt pushd_ignore_dups
 
-
-# グローバルエイリアス
-alias -g L='| less'
-alias -g G='| grep'
-
-# ヒストリの設定
+# command history configuration
 HISTFILE=~/.zsh_history
 HISTSIZE=1000000
 SAVEHIST=1000000
 
-
-# emacs 風キーバインドにする
+# emacs-like keybind
 bindkey -e
 
-
-# 日本語ファイル名を表示可能にする
+# enable to display Japanese
 setopt print_eight_bit
 
-# beep を無効にする
+# disable beep 
 setopt no_beep
 
-# フローコントロールを無効にする
+# disable flow control
 setopt no_flow_control
 
-# Ctrl+Dでzshを終了しない
+# disable exit by Ctrl+D
 setopt ignore_eof
 
-# '#' 以降をコメントとして扱う
+# regard text after '#' as comment even at command line
 setopt interactive_comments
 
-# vim:set ft=zsh :
-
-
-## 以下、手動で追記
-
-alias ls='ls -G'
-cdl() { builtin cd $1 && ls -la .;}
-alias cd='cdl'
-zstyle ':completion:*' list-colors 'di=32'
-
-export PATH=$PATH:~/Library/Python/2.7/bin
-export PATH=$PATH:/usr/local/sbin
-export PATH=$PATH:~/.composer/vendor/bin
-export localhost=/usr/local/var/www/htdocs
-export class=~/Dropbox/Documents/15/
-powerline-daemon -q
+# activate command line powerline pronpt
 . $POWERLINE_ROOT/bindings/zsh/powerline.zsh
 
-export PATH=$PATH:~/bin
-
-# brewの警告除去用
-alias brew="env PATH=${PATH//Users/inside_rice164/Library/Python/2.7/bin:/} brew"
-
-# 補完で小文字と大文字を区別しない
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
-
+# disable 'no matches found'
 setopt nonomatch
 
+# add colors to result of ls
 export LSCOLORS=gxfxbEaEBxxEhEhBaDaCaD
-
-alias eamcs='emacs'
-alias e='emacs'
-
-alias rm='trash'
-
-# Xerces2
-export CLASSPATH=.:$HOME/lib/java/isorelax.jar:$HOME/lib/java/jing.jar:$HOME/lib/java/msv.jar:$HOME/lib/java/relaxngDatatype.jar:$HOME/lib/java/resolver.jar:$HOME/lib/java/saxon.jar:$HOME/lib/java/serializer.jar:$HOME/lib/java/trang.jar:$HOME/lib/java/xalan.jar:$HOME/lib/java/xalansamples.jar:$HOME/lib/java/xercesImpl.jar:$HOME/lib/java/xercesSamples.jar:$HOME/lib/java/xml-apis.jar:$HOME/lib/java/xmlParserAPIs.jar:$HOME/lib/java/xsdlib.jar
 
 # vpsssh
 alias vpsssh='ssh -i ~/.ssh/ConoHa/id_rsa_conoha -p 4715 hakumai164@insidehakumai.net'
@@ -97,6 +78,3 @@ eval "$(pyenv init -)"
 
 # make "rbenv shell"available
 eval "$(rbenv init -)"
-
-# set slack-hubot token
-HUBOT_SLACK_TOKEN=xoxb-38412845716-DE5Cc4fTskJD54sjDIP0ADsz
