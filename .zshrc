@@ -9,6 +9,7 @@ alias -g L='| less'
 alias -g G='| grep'
 alias ls='ls -G'
 alias rm='trash'
+alias emacs='emacs -nw'
 
 # cd and ls
 cdl() { builtin cd $1 && ls -la .;}
@@ -78,3 +79,6 @@ eval "$(pyenv init -)"
 
 # make "rbenv shell"available
 eval "$(rbenv init -)"
+
+# add Emacs Cask path
+export PATH=$HOME/.cask/bin:$PATH
