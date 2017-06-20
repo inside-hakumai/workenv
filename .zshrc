@@ -104,3 +104,8 @@ if [ ! -z "$TMUX" ]; then
     fi
 fi
 
+# automatically launch tmux
+if [ -z "$TMUX" ]; then
+    tmux
+fi
+
