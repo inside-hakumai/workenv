@@ -4,13 +4,15 @@ export PATH=/usr/local/bin:$PATH
 # local .zshrc file
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
-# aliases
+# shorthand aliases
 alias o='open'
 alias e='emacs'
 alias eamcs='emacs'
 alias -g L='| less'
 alias -g G='| grep'
 alias ls='ls -G'
+
+# other aliases
 alias rm='trash'
 alias emacs='emacs -nw'
 
