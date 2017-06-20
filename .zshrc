@@ -88,3 +88,19 @@ eval "$(rbenv init -)"
 
 # add Emacs Cask path
 export PATH=$HOME/.cask/bin:$PATH
+
+# when tmux is launched, automatically 'brew upgrade && update' every 6 hours
+if [ ! -z "$TMUX" ]; then
+    if [ `tmux display-message -p '#{window_panes}'` = 1 ]; then
+        afterupdate=$(( $(date +%s)0 - $(stat -f %m $HOME/.ih-state/.brewupdate)0 ))
+        if [ $afterupdate -gt $(( 60 * 60 * 6 )) ]; then
+            tmux rename-window default-window
+            tmux split-window -h -t default-window.0
+            tmux select-pane -t :.+
+            tmux send-keys -t default-window.1 'brew upgrade && brew update && sleep 5s && touch $HOME/.ih-state/.brewupdate && exit' C-m
+        else
+          echo "$(( $afterupdate / 60 )) minutes after upgradating brew"
+        fi
+    fi
+fi
+
