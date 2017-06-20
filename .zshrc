@@ -109,3 +109,6 @@ if [ -z "$TMUX" ]; then
     tmux
 fi
 
+# command to kill all panes in current session of tmux
+alias killall="tmux kill-pane -a && exit"
+
