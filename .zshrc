@@ -1,3 +1,6 @@
+# standard PATH configuration
+export PATH=/usr/local/bin:$PATH
+
 # local .zshrc file
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
@@ -74,10 +77,13 @@ alias vpsssh='ssh -i ~/.ssh/ConoHa/id_rsa_conoha -p 4715 hakumai164@insidehakuma
 # add nodebrew path
 export PATH=$HOME/.nodebrew/current/bin:$PATH
 
-# make "pyenv shell" available
+# pyenv configuration
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 
 # make "rbenv shell"available
+export PATH="$HOME/.rbenv/bin:$PATH"
 eval "$(rbenv init -)"
 
 # add Emacs Cask path
