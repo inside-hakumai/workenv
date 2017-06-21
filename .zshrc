@@ -1,3 +1,18 @@
+
+# detect using OS
+if [ `uname` = 'Darwin' ]; then
+    TARGET_OS='MacOS'
+elif [ `uname` = 'Linux' ]; then
+    TARGET_OS='Linux'
+else
+    TARGET_OS='Unknown'
+fi
+
+
+####################################
+##      Common configuration      ##
+####################################
+
 # standard PATH configuration
 export PATH=/usr/local/bin:$PATH
 
@@ -91,17 +106,25 @@ eval "$(rbenv init -)"
 # add Emacs Cask path
 export PATH=$HOME/.cask/bin:$PATH
 
-# when tmux is launched, automatically 'brew upgrade && update' every 6 hours
+# when tmux is launched, automatically upgrade && update brew/apt every 6 hours
 if [ ! -z "$TMUX" ]; then
     if [ `tmux display-message -p '#{window_panes}'` = 1 ]; then
-        afterupdate=$(( $(date +%s)0 - $(stat -f %m $HOME/.ih-state/.brewupdate)0 ))
+	if [ "$TAEGET_OS" = "MacOS" ]; then
+	    afterupdate=$(( $(date +%s)0 - $(stat -f %m $HOME/.ih-state/.brewupdate)0 ))
+	    exec_command='brew upgrade && brew update && sleep 5s && touch $HOME/.ih-state/.brewupdate && exit'
+	    tool_name='brew'
+	elif [ "$TARGET_OS" = "Linux" ]; then
+	    afterupdate=$(( $(date +%s)0 - $(stat -c %Y $HOME/.ih-state/.aptupdate)0 ))
+	    exec_command='sudo apt upgrade && sudo apt update && sleep 5s && touch $HOME/.ih-state/.aptupdate && exit'
+	    tool_name='apt'
+	fi
         if [ $afterupdate -gt $(( 10 * 60 * 60 * 6 )) ]; then
             tmux rename-window default-window
             tmux split-window -h -t default-window.0
             tmux select-pane -t :.+
-            tmux send-keys -t default-window.1 'brew upgrade && brew update && sleep 5s && touch $HOME/.ih-state/.brewupdate && exit' C-m
+            tmux send-keys -t default-window.1 $exec_command C-m
         else
-            echo "$(( $afterupdate / 10 / 60 )) minutes after upgradating brew"
+            echo "$(( $afterupdate / 10 / 60 )) minutes after upgradating $tool_name"
         fi
     fi
 fi
@@ -113,4 +136,28 @@ fi
 
 # command to kill all panes in current session of tmux
 alias killpanes="tmux kill-pane -a && exit"
+
+
+alias sudo="sudo "
+
+
+####################################
+##  Linux specific configuration  ##
+####################################
+
+# log apt install
+# APT_LOG_DEST_FILE="$HOME/.apt_log"
+# apt_install_auto_log() {
+#     echo "$1"
+#     if [ "$1" = 'install' ]; then
+# 	echo huga
+# # 	#	\apt $@ && echo "[$(date +'%Y/%m/%d %H:%M:%S')] ${@:2}" >> $APT_LOG_DEST_FILE
+# 	\apt $@
+# 	echo $?
+# 	echo hoge
+#     else
+# 	\apt $@
+#     fi
+# }
+# alias apt='zsh -c "$(functions apt_install_auto_log); $@"'
 
