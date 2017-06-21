@@ -1,3 +1,7 @@
+####################################
+##      Common configuration      ##
+####################################
+
 # standard PATH configuration
 export PATH=/usr/local/bin:$PATH
 
