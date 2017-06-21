@@ -114,3 +114,27 @@ fi
 # command to kill all panes in current session of tmux
 alias killpanes="tmux kill-pane -a && exit"
 
+
+alias sudo="sudo "
+
+
+####################################
+##  Linux specific configuration  ##
+####################################
+
+# log apt install
+# APT_LOG_DEST_FILE="$HOME/.apt_log"
+# apt_install_auto_log() {
+#     echo "$1"
+#     if [ "$1" = 'install' ]; then
+# 	echo huga
+# # 	#	\apt $@ && echo "[$(date +'%Y/%m/%d %H:%M:%S')] ${@:2}" >> $APT_LOG_DEST_FILE
+# 	\apt $@
+# 	echo $?
+# 	echo hoge
+#     else
+# 	\apt $@
+#     fi
+# }
+# alias apt='zsh -c "$(functions apt_install_auto_log); $@"'
+
