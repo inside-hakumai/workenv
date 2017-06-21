@@ -48,3 +48,7 @@
 (setq-default tab-width 4
 	      indent-tabs-mode nil)
 
+;; shell-mode
+(setq-default sh-basic-offset 4)
+(setq-default sh-indentation 4)
+
