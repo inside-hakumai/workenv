@@ -43,3 +43,8 @@
 (global-set-key (kbd "M-x") 'helm-M-x)
 (require 'helm-config)
 (helm-mode 1)
+
+;; configs regardless of mode
+(setq-default tab-width 4
+	      indent-tabs-mode nil)
+
