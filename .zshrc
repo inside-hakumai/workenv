@@ -143,6 +143,17 @@ alias killpanes="tmux kill-pane -a && exit"
 
 alias sudo="sudo "
 
+####################################
+##  MacOS specific configuration  ##
+####################################
+if [ "$TARGET_OS" = "MacOS" ]; then
+    
+    # adjust aspect ratio of iTerm2 background image
+    bgo
+    
+fi
+
+
 
 ####################################
 ##  Linux specific configuration  ##
