@@ -16,8 +16,9 @@ fi
 # standard PATH configuration
 export PATH=/usr/local/bin:$PATH
 
-# local .zshrc file
+# local / private .zshrc file
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
+[ -f ~/Dropbox/configs/.zshrc.private ] && source ~/Dropbox/configs/.zshrc.private
 
 # shorthand aliases
 alias o='open'
