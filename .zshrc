@@ -32,7 +32,7 @@ alias ls='ls -hGla'
 alias rm='trash'
 alias emacs='emacs -nw'
 
-# cd and ls
+# automatically ls after cd
 cdl() { builtin cd $1 && ls -la .;}
 alias cd='cdl'
 
