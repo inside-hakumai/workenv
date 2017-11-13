@@ -89,9 +89,6 @@ setopt nonomatch
 # add colors to result of ls
 export LSCOLORS=gxfxbEaEBxxEhEhBaDaCaD
 
-# vpsssh
-alias vpsssh='ssh -i ~/.ssh/ConoHa/id_rsa_conoha -p 4715 hakumai164@insidehakumai.net'
-
 # add nodebrew path
 export PATH=$HOME/.nodebrew/current/bin:$PATH
 
