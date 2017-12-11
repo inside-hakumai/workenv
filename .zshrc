@@ -174,4 +174,5 @@ if [ "$TARGET_OS" = "Linux" ]; then
     #     fi
     # }
     # alias apt='zsh -c "$(functions apt_install_auto_log); $@"'
+    :
 fi
