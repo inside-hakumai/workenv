@@ -20,6 +20,15 @@ export PATH=/usr/local/bin:$PATH
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 [ -f ~/Dropbox/configs/.zshrc.private ] && source ~/Dropbox/configs/.zshrc.private
 
+# check if emacs application path is specified
+emacs() {
+    if [ ! -z "$EMACS_PATH" ] ; then
+	$EMACS_PATH -nw $@
+    else
+	/usr/bin/emacs -nw $@
+    fi
+}
+
 # shorthand aliases
 alias o='open'
 alias e='emacs'
@@ -30,7 +39,6 @@ alias ls='ls -hGla'
 
 # other aliases
 alias rm='trash'
-alias emacs='emacs -nw'
 
 # automatically ls after cd
 cdl() { builtin cd $1 && ls -la .;}
