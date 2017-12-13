@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+
+parser = argparse.ArgumentParser(description='Generate makefile.')
+parser.add_argument('-t', '--type', action='store',
+                    choices=['tex'],
+                    required=True,
+                    help='what is makefile for')
+parser.add_argument('--texfile', action='store',
+                    required=False,
+                    help='[tex] Compiled tex file name (without extension)')
+
+if __name__ == "__main__":
+
+    args = parser.parse_args()
+    template_file = os.path.join(os.path.dirname(__file__), 'assets', args.type + '_makefile')
+
+    if args.type != 'tex' and args.texfile:
+        parser.error('--texfile can only be set when --type=tex.')
+    elif args.type == 'tex' and not args.texfile:
+        parser.error('--texfile must be set when --type=tex.')
+
+    if os.path.exists('makefile'):
+        print("genmkfile: error: makefile is already exists")
+
+    with open(template_file, 'r') as file:
+        template_str = file.read()
+
+    if args.type == 'tex':
+        gen_str = template_str.format(args.texfile)
+
+    with open('makefile', 'w') as file:
+        file.write(gen_str)

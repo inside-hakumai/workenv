@@ -1,0 +1,10 @@
+F={0}
+
+ALL  : TODVI TOPDF CLEAN
+
+TODVI: $F.tex
+	platex $F && platex $F
+TOPDF: $F.dvi
+	dvipdfmx $F
+CLEAN: 
+	\rm $F.aux $F.lof $F.log $F.toc
