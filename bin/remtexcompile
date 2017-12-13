@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+
+import subprocess
+import os
+import sys
+import glob
+
+TEX_HOST      = os.getenv("TEX_HOST",      False)
+TEX_HOST_USER = os.getenv("TEX_HOST_USER", False)
+TEX_HOST_PORT = os.getenv("TEX_HOST_PORT", False)
+TEX_ADDRESS   = TEX_HOST_USER + "@" + TEX_HOST
+
+SSH_COMMAND   = "ssh -p {0} {1}".format(TEX_HOST_PORT, TEX_ADDRESS)
+CWD           = os.getcwd()
+
+COMMANDS = [
+    "{0} 'mkdir -p ~/.textmp'".format(SSH_COMMAND),
+    "scp -P {0} -r {1}/** {2}:~/.textmp".format(TEX_HOST_PORT, CWD, TEX_ADDRESS),
+    "{0} 'cd ~/.textmp && make'".format(SSH_COMMAND),
+    "scp -P {0} {1}:~/.textmp/*.pdf {2}/".format(TEX_HOST_PORT, TEX_ADDRESS, CWD),
+    "{0} 'rm -rf  ~/.textmp'".format(SSH_COMMAND)
+]
+
+if __name__ == "__main__":
+
+   if not (TEX_HOST and TEX_HOST_USER and TEX_HOST_PORT):
+      print("ERROR: Specify TEX_HOST and TEX_HOST_USER and TEX_HOST_PORT as environment variables.".format(CWD), file=sys.stderr)
+      exit(1)
+
+   if not os.path.exists(CWD + "/makefile"):
+      print("ERROR: makefile is not found in {0}".format(CWD), file=sys.stderr)
+      exit(1)
+
+   if len(glob.glob(CWD + "/*.tex")) == 0:
+      print("ERROR: No tex file is found in {0}".format(CWD), file=sys.stderr)
+      exit(1)
+   
+   for cmd in COMMANDS:
+      subprocess.check_call(cmd, shell=True)
