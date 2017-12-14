@@ -88,9 +88,6 @@ setopt ignore_eof
 # regard text after '#' as comment even at command line
 setopt interactive_comments
 
-# activate command line powerline pronpt
-. $POWERLINE_ROOT/bindings/zsh/powerline.zsh
-
 # disable 'no matches found'
 setopt nonomatch
 
@@ -104,6 +101,9 @@ export PATH=$HOME/.nodebrew/current/bin:$PATH
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
+
+# activate command line powerline pronpt
+. $POWERLINE_ROOT/bindings/zsh/powerline.zsh
 
 # make "rbenv shell"available
 export PATH="$HOME/.rbenv/bin:$PATH"
