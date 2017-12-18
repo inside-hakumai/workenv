@@ -52,6 +52,9 @@
 (setq-default sh-basic-offset 4)
 (setq-default sh-indentation 4)
 
+;; JavaScript mode
+(setq js-indent-level 3)
+
 ;; sync clipboard of OS and kill ring of Emacs
 (defun copy-from-osx ()
   (shell-command-to-string "pbpaste"))
