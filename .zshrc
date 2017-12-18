@@ -100,14 +100,24 @@ export PATH=$HOME/.nodebrew/current/bin:$PATH
 # pyenv configuration
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
+if builtin command -v pyenv > /dev/null ; then
+    eval "$(pyenv init -)"
+else
+    echo "[Notice] pyenv is not installed." >&2
+fi
+
 
 # activate command line powerline pronpt
 . $POWERLINE_ROOT/bindings/zsh/powerline.zsh
 
 # make "rbenv shell"available
 export PATH="$HOME/.rbenv/bin:$PATH"
-eval "$(rbenv init -)"
+if builtin command -v rbenv > /dev/null ; then
+    eval "$(rbenv init -)"
+else
+    echo "[Notice] rbenv is not installed." >&2
+fi
+
 
 # add Emacs Cask path
 export PATH=$HOME/.cask/bin:$PATH
@@ -157,7 +167,11 @@ alias sudo="sudo "
 if [ "$TARGET_OS" = "MacOS" ]; then
     
     # adjust aspect ratio of iTerm2 background image
-    bgo
+    if builtin command -v bgo > /dev/null ; then
+        bgo
+    else
+        echo "[Notice] bgo command is not installed." >&2
+    fi
     
 fi
 
