@@ -14,10 +14,11 @@ SSH_COMMAND   = "ssh -p {0} {1}".format(TEX_HOST_PORT, TEX_ADDRESS)
 CWD           = os.getcwd()
 
 COMMANDS = [
+    "[ -d {0}/out ] || mkdir {0}/out/ 2>/dev/null".format(CWD),
     "{0} 'mkdir -p ~/.textmp'".format(SSH_COMMAND),
     "scp -P {0} -r {1}/** {2}:~/.textmp".format(TEX_HOST_PORT, CWD, TEX_ADDRESS),
     "{0} 'cd ~/.textmp && make'".format(SSH_COMMAND),
-    "scp -P {0} {1}:~/.textmp/*.pdf {2}/".format(TEX_HOST_PORT, TEX_ADDRESS, CWD),
+    "scp -P {0} {1}:~/.textmp/*.pdf {2}/out/".format(TEX_HOST_PORT, TEX_ADDRESS, CWD),
     "{0} 'rm -rf  ~/.textmp'".format(SSH_COMMAND)
 ]
 
