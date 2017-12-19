@@ -30,3 +30,4 @@
 ;; added manually
 (depends-on "auto-complete")
 (depends-on "helm")
+(depends-on "python-mode")

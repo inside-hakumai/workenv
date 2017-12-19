@@ -13,14 +13,14 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(package-selected-packages (quote (scroll-restore)))
+ '(package-selected-packages (quote (python-mode scroll-restore)))
  '(vc-follow-symlinks t))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- )
+ '(linum ((t (:inherit (shadow default))))))
 
 ;; auto-complete
 (require 'auto-complete-config)
@@ -35,8 +35,7 @@
 ;; linum-mode
 (global-linum-mode t)
 (setq linum-format "%4d ")
-(custom-set-faces
- '(linum ((t (:inherit (shadow default))))))
+
 
 ;; helm
 (define-key global-map (kbd "C-x C-f") 'helm-find-files)
