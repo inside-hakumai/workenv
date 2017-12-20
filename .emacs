@@ -32,9 +32,16 @@
 (setq ac-use-menu-map t)       ;; 補完メニュー表示時にC-n/C-pで補完候補選択
 (setq ac-use-fuzzy t)          ;; 曖昧マッチ
 
-;; linum-mode
+;; linum-mode with hlinum
+(require 'hlinum)
+(hlinum-activate)
 (global-linum-mode t)
 (setq linum-format "%4d ")
+;; (custom-set-faces
+;; '(linum ((t (:inherit (shadow default))))))
+(custom-set-faces
+ '(linum-highlight-face ((t (:foreground "black"
+                             :background "#03dbda")))))
 
 
 ;; helm
@@ -66,3 +73,18 @@
 
 (setq interprogram-cut-function 'paste-to-osx)
 (setq interprogram-paste-function 'copy-from-osx)
+
+;; Apply Powerline 
+(require 'powerline)
+(powerline-default-theme)
+
+;; Apply volatile-highlights
+(require 'volatile-highlights)
+(volatile-highlights-mode t)
+
+;; Apply anzu
+(global-anzu-mode +1)
+(custom-set-variables
+ '(anzu-mode-lighter "")
+ '(anzu-deactivate-region t)
+ '(anzu-search-threshold 1000))

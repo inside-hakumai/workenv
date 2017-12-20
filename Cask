@@ -31,3 +31,8 @@
 (depends-on "auto-complete")
 (depends-on "helm")
 (depends-on "python-mode")
+(depends-on "git-commit")
+(depends-on "anzu")
+(depends-on "volatile-highlights")
+(depends-on "powerline")
+(depends-on "hlinum")
