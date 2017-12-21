@@ -35,7 +35,7 @@ alias e='emacs'
 alias eamcs='emacs'
 alias -g L='| less'
 alias -g G='| grep'
-alias ls='ls -hGla'
+alias ls='ls -hGla --color=auto'
 
 # other aliases
 alias rm='trash'
