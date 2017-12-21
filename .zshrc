@@ -53,7 +53,7 @@ export NODE_PATH=/usr/local/lib/node_modules
 # JAVA_HOME configuration
 jhome=$(/usr/libexec/java_home -v 1.8) 2>/dev/null
 if [ $? -eq 0 ] ; then
-    export JAVA_HOME=$(jhome)
+    export JAVA_HOME=$jhome
 elif [ $? -eq 1 ] ; then
     echo "[Notice] Failed to set JAVA_HOME" >&2
 else
