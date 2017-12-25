@@ -36,3 +36,6 @@
 (depends-on "volatile-highlights")
 (depends-on "powerline")
 (depends-on "hlinum")
+(depends-on "yaml-mode")
+(depends-on "php-mode")
+(depends-on "fish-mode")
