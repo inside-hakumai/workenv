@@ -33,7 +33,7 @@ end
 alias o='open'
 alias e='emacs'
 alias eamcs='emacs'
-alias ls='ls -hGla'
+alias ls='ls -hGla --color=auto'
 
 # other aliases
 alias rm='trash'
