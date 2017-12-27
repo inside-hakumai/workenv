@@ -52,14 +52,16 @@ set -x LANG ja_JP.UTF-8
 set -x NODE_PATH /usr/local/lib/node_modules
 
 # JAVA_HOME configuration
-set jhome (/usr/libexec/java_home -v 1.8) 2>/dev/null
-if [ $status -eq 0 ]
-    set -x JAVA_HOME $jhome
-else if [ $status -eq 1 ]
-    echo "[Notice] Failed to set JAVA_HOME" >&2
-else
-    echo $status
-end 
+if [ -f /usr/libexec/java_home ]
+    set jhome (eval /usr/libexec/java_home -v 1.8 ^ /dev/null)
+    if [ $status -eq 0 ]
+        set -x JAVA_HOME $jhome
+    else if [ $status -eq 1 ]
+        echo "[Notice] Failed to set JAVA_HOME" >&2
+    else
+        echo $status
+    end
+end
 
 # add colors to result of ls
 set -x LSCOLORS gxfxbEaEBxxEhEhBaDaCaD
