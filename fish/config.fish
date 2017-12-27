@@ -17,7 +17,7 @@ end
 set -x PATH /usr/local/bin $PATH
 
 # local / private .zshrc file
-[ -f ~/.zshrc.local ]; and source ~/.zshrc.local
+[ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
 [ -f ~/Dropbox/configs/.zshrc.private ]; source ~/Dropbox/configs/.zshrc.private
 
 # check if emacs application path is specified
