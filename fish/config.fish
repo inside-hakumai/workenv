@@ -85,8 +85,8 @@ end
 
 
 # activate command line powerline pronpt
-set fish_function_path $fish_function_path "(POWERLINE_ROOT)/bindings/fish"
-. $POWERLINE_ROOT/bindings/fish/powerline-setup.fish
+set -x fish_function_path $fish_function_path "(POWERLINE_ROOT)/bindings/fish"
+source $POWERLINE_ROOT/bindings/fish/powerline-setup.fish
 powerline-setup
 
 # make "rbenv shell"available
