@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+import subprocess
+
+CWD = os.getcwd()
+
+parser = argparse.ArgumentParser(description='Process some integers.')
+parser.add_argument('SOURCE', action='store',
+                    help='Source directory')
+parser.add_argument('DEST', action='store',
+                    help='Destination directory')
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+
+    source_dir = os.path.abspath(os.path.join(CWD, args.SOURCE))
+    dest_dir   = os.path.abspath(os.path.join(CWD, args.DEST))
+
+    for dirpath, dirnames, filenames in os.walk(source_dir):
+        for fn in filenames:
+            subprocess.check
+            print(dirpath + "/" + fn)
