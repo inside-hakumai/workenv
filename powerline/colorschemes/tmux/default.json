@@ -7,7 +7,7 @@
 		"window":               {"fg": "gray6",      "bg": "gray0",    "attrs": []},
 		"window:divider":       {"fg": "gray4",      "bg": "gray0",    "attrs": []},
 		"window:current":       {"fg": "mediumcyan", "bg": "darkblue", "attrs": []},
-		"window_name":          {"fg": "white",      "bg": "darkblue", "attrs": ["bold"]},
+		"window_name":          {"fg": "gray4",      "bg": "darkblue", "attrs": ["bold"]},
 		"session":              {"fg": "black",      "bg": "gray90",   "attrs": ["bold"]},
 		"session:prefix":       {"fg": "gray90",     "bg": "darkblue", "attrs": ["bold"]}
 	}
