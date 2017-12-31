@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+# 開始日
+START_DATE=`date +"%Y-%m-%d %H:%M:%S"`
+# 終了日
+END_DATE=${TIMELEFT_TARGET}
+
+# それぞれのUNIXタイムスタンプを取得
+# (1970-01-01からの秒数)
+START=`date -j -f "%Y-%m-%d %H:%M:%S" "${START_DATE}" "+%s"`
+END=`date -j -f "%Y-%m-%d %H:%M:%S" "${END_DATE}" "+%s"`
+
+# 日数を計算
+DATE_COUNT=`expr \( ${END} - ${START} \) / 86400`
+HOUR_COUNT=`expr \( \( ${END} - ${START} \) - \( ${DATE_COUNT} \* 86400 \) \) / 3600`
+MINUTE_COUNT=`expr \( \( ${END} - ${START} \) - \( ${DATE_COUNT} \* 86400 \) - \( ${HOUR_COUNT} \* 3600 \) \) / 60`
+SECOND_COUNT=`expr \( \( ${END} - ${START} \) - \( ${DATE_COUNT} \* 86400 \) - \( ${HOUR_COUNT} \* 3600 \) - \( ${MINUTE_COUNT} \* 60 \) \)`
+
+echo "${DATE_COUNT}d $(printf %02d ${HOUR_COUNT}):$(printf %02d ${MINUTE_COUNT}):$(printf %02d ${SECOND_COUNT})"
+exit 0;
