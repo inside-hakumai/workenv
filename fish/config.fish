@@ -16,7 +16,7 @@ end
 set -x PATH /usr/local/bin $PATH
 set -x PATH ~/bin/ $PATH
 
-# local / private .zshrc file
+# local / private config file
 [ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
 [ -f ~/Dropbox/configs/.fishconfig.private ]; source ~/Dropbox/configs/.fishconfig.private
 
