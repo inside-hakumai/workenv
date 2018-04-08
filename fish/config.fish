@@ -136,7 +136,7 @@ if [ ! -z "$TMUX" ]
 end
 
 # automatically launch tmux and disconnect parent shell
-if [ -z "$TMUX" ]
+if test \( -z "$TMUX" \) -a \( ! "$TERM_PROGRAM" = "vscode" \)
     exec tmux new-session; and exit;
 end
 
