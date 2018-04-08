@@ -36,9 +36,9 @@ alias e='emacs'
 alias eamcs='emacs'
 alias gitg='git log --graph --full-history --all --color --pretty=format:"%x1b[31m%h%x09%x1b[32m%d%x1b[0m%x20%s"'
 
-if [ "$TARGET_OS" = "MacOS" ]
+if test "$TARGET_OS" = "MacOS"
     alias ls='ls -hGla'
-else if [ "$TARGET_OS" = "Linux" ]
+else if test "$TARGET_OS" = "Linux" 
     alias ls='ls -hGla --color=auto'
 end
 
