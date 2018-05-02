@@ -8,7 +8,6 @@ else
     set TARGET_OS 'Unknown'
 end
 
-
 ####################################
 ##      Common configuration      ##
 ####################################
@@ -182,3 +181,4 @@ if [ "$TARGET_OS" = "Linux" ]
     # alias apt='zsh -c "$(functions apt_install_auto_log); $@"'
     :
 end
+
