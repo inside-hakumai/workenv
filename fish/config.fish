@@ -67,7 +67,7 @@ if [ -f /usr/libexec/java_home ]
     if [ $status -eq 0 ]
         set -x JAVA_HOME $jhome
     else if [ $status -eq 1 ]
-        echo "[Notice] Failed to set JAVA_HOME" >&2
+        echo "Notice: Failed to set JAVA_HOME" 1>&2
     else
         echo $status
     end
@@ -155,7 +155,7 @@ if [ "$TARGET_OS" = "MacOS" ]
     if builtin command -v bgo > /dev/null
         bgo
     else
-        echo "[Notice] bgo command is not installed." >&2
+        echo "Notice: bgo command is not installed." 1>&2
     end    
 end
 
