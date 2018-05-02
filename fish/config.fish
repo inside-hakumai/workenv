@@ -1,8 +1,9 @@
 
 # detect using OS
-if [ `uname` = 'Darwin' ]
+set uname_val (uname)
+if [ "$uname_val" = 'Darwin' ]
     set TARGET_OS 'MacOS'
-else if [ `uname` = 'Linux' ]
+else if [ "$uname_val" = 'Linux' ]
     set TARGET_OS 'Linux'
 else
     set TARGET_OS 'Unknown'
