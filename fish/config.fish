@@ -78,6 +78,7 @@ set -x LSCOLORS gxfxbEaEBxxEhEhBaDaCaD
 
 # add nodebrew path
 set -x PATH $HOME/.nodebrew/current/bin $PATH
+set -x PATH $HOME/.nodebrew/current/lib/node_modules/npm/bin $PATH
 
 # pyenv configuration
 set -x PYENV_ROOT "$HOME/.pyenv"
