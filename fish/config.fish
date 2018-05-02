@@ -20,6 +20,11 @@ set -x PATH ~/bin/ $PATH
 [ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
 [ -f ~/Dropbox/configs/.fishconfig.private ]; source ~/Dropbox/configs/.fishconfig.private
 
+# automatically launch tmux and disconnect parent shell immediatelay
+if test \( -z "$TMUX" \) -a \( ! "$TERM_PROGRAM" = "vscode" \)
+    exec tmux new-session; and exit;
+end
+
 # check if emacs application path is specified
 function emacs
     if [ ! -z "$EMACS_PATH" ]
@@ -132,11 +137,6 @@ if [ ! -z "$TMUX" ]
             \rm $HOME/.ih-state/.brewupgradate.lock
         end
     end
-end
-
-# automatically launch tmux and disconnect parent shell
-if test \( -z "$TMUX" \) -a \( ! "$TERM_PROGRAM" = "vscode" \)
-    exec tmux new-session; and exit;
 end
 
 # command to kill all panes in current session of tmux
