@@ -1,8 +1,9 @@
 
 # detect using OS
-if [ `uname` = 'Darwin' ]
+set uname_val (uname)
+if [ "$uname_val" = 'Darwin' ]
     set TARGET_OS 'MacOS'
-else if [ `uname` = 'Linux' ]
+else if [ "$uname_val" = 'Linux' ]
     set TARGET_OS 'Linux'
 else
     set TARGET_OS 'Unknown'
@@ -154,6 +155,11 @@ if [ "$TARGET_OS" = "MacOS" ]
     # adjust aspect ratio of iTerm2 background image
     if builtin command -v bgo > /dev/null
         bgo
+
+        # function handling a change of terminal window size
+        function auto-bgo --on-variable COLUMNS
+            bgo
+        end     
     else
         echo "Notice: bgo command is not installed." 1>&2
     end    
