@@ -14,7 +14,6 @@ end
 ####################################
 
 # standard PATH configuration
-set -x PATH /usr/local/bin $PATH
 set -x PATH ~/bin/ $PATH
 
 # local / private config file
