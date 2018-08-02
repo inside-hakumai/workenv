@@ -21,7 +21,7 @@ set -x PATH ~/bin/ $PATH
 [ -f ~/Dropbox/configs/.fishconfig.private ]; source ~/Dropbox/configs/.fishconfig.private
 
 # automatically launch tmux and disconnect parent shell immediatelay
-if test \( -z "$TMUX" \) -a \( ! "$TERM_PROGRAM" = "vscode" \)
+if type tmux > /dev/null ^ /dev/null ; and test \( -z "$TMUX" \) -a \( ! "$TERM_PROGRAM" = "vscode" \)
     exec tmux new-session; and exit;
 end
 
