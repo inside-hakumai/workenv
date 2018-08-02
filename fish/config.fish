@@ -14,7 +14,9 @@ end
 ####################################
 
 # standard PATH configuration
-set -x PATH ~/bin/ $PATH
+if [ -e ~/bin ]
+    set -x PATH ~/bin/ $PATH
+end
 
 # local / private config file
 [ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
@@ -77,18 +79,21 @@ end
 set -x LSCOLORS gxfxbEaEBxxEhEhBaDaCaD
 
 # add nodebrew path
-set -x PATH $HOME/.nodebrew/current/bin $PATH
-set -x PATH $HOME/.nodebrew/current/lib/node_modules/npm/bin $PATH
-
-# pyenv configuration
-set -x PYENV_ROOT "$HOME/.pyenv"
-set -x PATH "$PYENV_ROOT/bin" $PATH
-if builtin command -v pyenv > /dev/null
-    . (pyenv init - | psub)
-else
-    echo "[Notice] pyenv is not installed." >&2
+if [ -e $HOME/.nodebrew/current ]
+    set -x PATH $HOME/.nodebrew/current/bin $PATH
+    set -x PATH $HOME/.nodebrew/current/lib/node_modules/npm/bin $PATH
 end
 
+# pyenv configuration
+if [ -e $HOME/.pyenv ]
+    set -x PYENV_ROOT "$HOME/.pyenv"
+    set -x PATH "$PYENV_ROOT/bin" $PATH
+    if builtin command -v pyenv > /dev/null
+        . (pyenv init - | psub)
+    else
+        echo "[Notice] pyenv is not installed." >&2
+    end
+end
 
 # activate command line powerline pronpt
 set -x fish_function_path $fish_function_path "(POWERLINE_ROOT)/bindings/fish"
@@ -96,16 +101,19 @@ source $POWERLINE_ROOT/bindings/fish/powerline-setup.fish
 powerline-setup
 
 # make "rbenv shell"available
-set -x PATH "$HOME/.rbenv/bin" $PATH
-if builtin command -v rbenv > /dev/null
-    . (rbenv init - | psub)
-else
-    echo "[Notice] rbenv is not installed." >&2
+if [ -e $HOME/.rbenv ]
+    set -x PATH "$HOME/.rbenv/bin" $PATH
+    if builtin command -v rbenv > /dev/null
+        . (rbenv init - | psub)
+    else
+        echo "[Notice] rbenv is not installed." >&2
+    end
 end
 
-
 # add Emacs Cask path
-set -x PATH $HOME/.cask/bin $PATH
+if [ -e $HOME/.cask/ ]
+    set -x PATH $HOME/.cask/bin $PATH
+end
 
 # when tmux is launched, automatically upgrade && update brew/apt every 6 hours
 if [ ! -z "$TMUX" ]
