@@ -81,7 +81,6 @@ set -x LSCOLORS gxfxbEaEBxxEhEhBaDaCaD
 # add nodebrew path
 if [ -e $HOME/.nodebrew/current ]
     set -x PATH $HOME/.nodebrew/current/bin $PATH
-    set -x PATH $HOME/.nodebrew/current/lib/node_modules/npm/bin $PATH
 end
 
 # pyenv configuration
