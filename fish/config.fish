@@ -1,3 +1,7 @@
+# execute neofetch if it is installed
+if type -q neofetch
+   neofetch
+end
 
 # detect using OS
 set uname_val (uname)
