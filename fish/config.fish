@@ -1,6 +1,8 @@
 # execute neofetch if it is installed
-if type -q neofetch
-   neofetch
+if status --is-login
+   if type -q neofetch
+      neofetch
+   end
 end
 
 # disable "Welcome to fish, the friendly interactive shell"
