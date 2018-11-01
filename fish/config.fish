@@ -3,6 +3,9 @@ if type -q neofetch
    neofetch
 end
 
+# disable "Welcome to fish, the friendly interactive shell"
+set fish_greeting
+
 # detect using OS
 set uname_val (uname)
 if [ "$uname_val" = 'Darwin' ]
