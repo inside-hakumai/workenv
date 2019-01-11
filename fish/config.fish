@@ -1,10 +1,3 @@
-# execute neofetch if it is installed
-if status --is-login
-   if type -q neofetch
-      neofetch
-   end
-end
-
 # disable "Welcome to fish, the friendly interactive shell"
 set fish_greeting
 
@@ -34,6 +27,13 @@ end
 # automatically launch tmux and disconnect parent shell immediatelay
 if type tmux > /dev/null ^ /dev/null ; and test \( -z "$TMUX" \) -a \( ! "$TERM_PROGRAM" = "vscode" \)
     exec tmux new-session; and exit;
+end
+
+# execute neofetch if it is installed
+if status --is-login
+   if type -q neofetch
+      neofetch
+   end
 end
 
 # check if emacs application path is specified
