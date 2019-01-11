@@ -1,5 +1,6 @@
 fisherman/await
 0rax/fish-bd
+barnybug/docker-fish-completion
 fisherman/fzf
 fisherman/get
 fisherman/getopts
