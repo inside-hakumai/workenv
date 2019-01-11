@@ -181,8 +181,6 @@ if [ "$TARGET_OS" = "MacOS" ]
         function auto-bgo --on-variable COLUMNS
             bgo
         end     
-    else
-        echo "Notice: bgo command is not installed." 1>&2
     end    
 end
 
