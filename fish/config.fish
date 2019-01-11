@@ -15,6 +15,11 @@ end
 ##      Common configuration      ##
 ####################################
 
+set -x LC_ALL en_US.UTF-8
+set -x LANG en_US.UTF-8
+set -x CFLAGS -I(brew --prefix openssl)/include -I(xcrun --show-sdk-path)/usr/include
+set -x LDFLAGS -L(brew --prefix openssl)/lib
+
 # standard PATH configuration
 if [ -e ~/bin ]
     set -x PATH ~/bin/ $PATH
