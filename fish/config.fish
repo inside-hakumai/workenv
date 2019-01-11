@@ -108,6 +108,10 @@ if [ -e $HOME/.pyenv ]
     end
 end
 
+# golang configuration
+set -x GOPATH "$HOME/.go"
+set -x PATH $PATH $GOPATH/bin
+
 # activate command line powerline pronpt
 # "$POWERLINE_ROOT" is must be defined previously
 set -x fish_function_path $fish_function_path "$POWERLINE_ROOT/bindings/fish"
