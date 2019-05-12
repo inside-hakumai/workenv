@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+import subprocess
+import sys
+import textwrap
+
+
+def validate_indexed_gofiles_are_formatted():
+    """
+    gitの現在のインデックス上に存在するgoのファイルが"go fmt"コマンドによって整形済みであるかどうかを検証する
+    未整形のgoファイルが存在する場合、stderrにその旨を伝えるメッセージを出力
+    Check whether go files which are in git index are formatted by "go fmt" or not.
+    If there are any indexed but unformatted go files, A message is output to stderr.
+
+    Returns:
+        bool: True if all indexed go files are already formatted or False if not.
+    """
+
+    try:
+        # 未整形のgoファイルのパスのリストを取得
+        gofmt_process = subprocess.run("gofmt -l ./".split(), stdout=subprocess.PIPE, check=True)
+        unformatted_files = gofmt_process.stdout.decode().splitlines()
+
+        # gitのインデックス上に存在するファイルのパスのリストを取得
+        git_status_process = subprocess.run("git status --porcelain".split(), stdout=subprocess.PIPE, check=True)
+        git_status_entries = git_status_process.stdout.decode().splitlines()
+        git_indexed_entries = list(filter(lambda entry: entry[0] == "A" or entry[0] == "M", git_status_entries))
+        git_indexed_files = list(map(lambda entry: entry[3:], git_indexed_entries))
+
+        # gitのインデックス上に存在する未整形のgoファイルのリストを取得
+        unformatted_indexed_files = [unfmt_file for unfmt_file in unformatted_files if unfmt_file in git_indexed_files]
+
+        # リストが空（i.e. コミットしようとしているgoファイルがすべて整形済み）ならばTrueを返し，
+        # そうでないならエラーメッセージを出力したのちにFalseを返す
+        if len(unformatted_indexed_files) == 0:
+            return True
+        else:
+            print(textwrap.dedent("""\
+            ERROR: The commit has been aborted.
+            
+            Following files will be formatted by executing "go fmt":
+            {0}
+            
+            Please format these files before commit.
+            """.format("\n".join(unformatted_indexed_files))), file=sys.stderr)
+
+            return False
+
+    except subprocess.CalledProcessError:
+        return False
+
+
+if __name__ == "__main__":
+    is_valid = validate_indexed_gofiles_are_formatted()
+
+    if is_valid:
+        exit(0)
+    else:
+        exit(1)
