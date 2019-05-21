@@ -21,11 +21,11 @@ export PATH=/usr/local/bin:$PATH
 [ -f ~/Dropbox/configs/.zshrc.private ] && source ~/Dropbox/configs/.zshrc.private
 
 # aliases
-alias ls='ls -hGla --color=auto'
+alias ls='ls -hGla'
 alias gitg='git log --graph --full-history --all --color --pretty=format:"%x1b[31m%h%x09%x1b[32m%d%x1b[0m%x20%s"'
 
 # automatically ls after cd
-cdl() { builtin cd $1 && ls -la .;}
+cdl() { builtin cd $1 && ls .;}
 alias cd='cdl'
 
 # language configuration
