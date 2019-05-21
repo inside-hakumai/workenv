@@ -16,7 +16,10 @@ fi
 # standard PATH configuration
 export PATH=/usr/local/bin:$PATH
 
-# local / private .zshrc file
+# .zshrc.local（gitで管理しない端末特有の設定を管理するファイル）を取り込む
+# .zshrc.private（gitで管理しないが所有端末間で共有したい設定を管理するファイル）を取り込む
+# Import .zshrc.local, which stores machine-dependent configurations that should not be managed by git
+# Import .zshrc.private, which stores shared configurations among machines that should not be managed by git
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
 [ -f ~/Dropbox/configs/.zshrc.private ] && source ~/Dropbox/configs/.zshrc.private
 
