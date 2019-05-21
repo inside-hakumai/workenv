@@ -91,6 +91,16 @@ fi
 # add Emacs Cask path
 export PATH=$HOME/.cask/bin:$PATH
 
+# Powerlevel9kがインストールされている場合は有効化
+# Activate Powerlevel9k if installed
+if [ -f ~/powerlevel9k/powerlevel9k.zsh-theme ]; then
+    #TODO .zshrcがシンボリックリンクである場合しか期待通り動かない（実際のファイルである場合readlinkが何も返さない）
+    source `dirname $(readlink ~/.zshrc)`/powerlevel9k.zshrc
+fi
+
+source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
+source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
 # 補完機能の有効化
 # enable complementation function
 autoload -Uz compinit
