@@ -34,10 +34,6 @@ export LANG=ja_JP.UTF-8
 # NODE_PATH configuration
 export NODE_PATH=/usr/local/lib/node_modules
 
-# enable complementation function
-autoload -Uz compinit
-compinit
-
 # not distinguish between capital letters and small letter at complementation
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 
@@ -94,6 +90,11 @@ fi
 
 # add Emacs Cask path
 export PATH=$HOME/.cask/bin:$PATH
+
+# 補完機能の有効化
+# enable complementation function
+autoload -Uz compinit
+compinit
 
 alias sudo="sudo "
 
