@@ -78,10 +78,6 @@ if builtin command -v pyenv > /dev/null ; then
     eval "$(pyenv init -)"
 fi
 
-
-# activate command line powerline pronpt
-. $POWERLINE_ROOT/bindings/zsh/powerline.zsh
-
 # make "rbenv shell"available
 export PATH="$HOME/.rbenv/bin:$PATH"
 if builtin command -v rbenv > /dev/null ; then
