@@ -97,6 +97,10 @@ fi
 source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
+# fzfによるコマンド履歴の検索機能を有効化
+# Enable a function seraching command history by fzf
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh # ".fzf.zsh" は "$(brew --prefix)/opt/fzf/install" で生成されるファイル
+
 # 補完機能の有効化
 # enable complementation function
 autoload -Uz compinit
