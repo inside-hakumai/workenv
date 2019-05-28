@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# Description:
+#   ssh接続先のホスト名を取得します。
+#   sshのプロセスが見つからない場合は Exit Code 1 を返して終了します。
+#
+# Usage:
+#   rhostname PID
+#
+# Arguments:
+#   PID - ssh先のホスト名を取得したいsshプロセスのプロセスID、もしくはその親プロセスのプロセスPID
+#
+
+set -u
+
+function usage() {
+  sed -En "/^# Description:/,/^#$/ s/^# (.*)/\1/p" "$0" # TODO MacOSで採用されているBSD版のsedでしか動かない。GNU版sedでも動くようにする
+  sed -En "/^# Usage:/,/^#$/ s/^# (.*)/\1/p" "$0"
+  sed -En "/^# Arguments:/,/^#$/ s/^# (.*)/\1/p" "$0"
+}
+
+if [[ $# -ne 1 ]]; then
+  usage
+  exit 1
+fi
+
+target_pid=$1
+target_cmd=$(ps h -p ${target_pid} -o command | sed -n "2 p")
+
+while [[ ${target_cmd} != ssh* ]]; do
+  target_pid=$(pgrep -P ${target_pid})
+  if [[ -z "${target_pid}" ]]; then
+    echo $(hostname)
+    exit 1
+  fi
+
+  target_cmd=$(ps h -p ${target_pid} -o command | sed -n "2 p")
+done
+
+echo ${target_cmd} | sed -En "1 s/^ssh (.*)$/\1/p"
