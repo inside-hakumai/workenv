@@ -142,6 +142,10 @@ if [ "$TARGET_OS" = "MacOS" ]; then
     export PATH=$HOME/Library/Android/sdk/platform-tools:$PATH
   fi
 
+  if [ -f $HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]; then
+    source $HOME/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+  fi
+fi
 
 
 ####################################
