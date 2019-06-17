@@ -26,6 +26,7 @@ export PATH=$HOME/bin:/usr/local/bin:$PATH
 # aliases
 alias ls='ls -hGla'
 alias gitg='git log --graph --full-history --all --color --pretty=format:"%x1b[31m%h%x09%x1b[32m%d%x1b[0m%x20%s"'
+alias bd="cd .."
 
 # automatically ls after cd
 cdl() { builtin cd $1 && ls .;}
