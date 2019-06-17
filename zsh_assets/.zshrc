@@ -113,8 +113,23 @@ zplug "zsh-users/zsh-completions"
 
 # 補完機能の有効化
 # enable complementation function
+fpath=(`dirname $(readlink ~/.zshrc)`/completion $fpath)
 autoload -Uz compinit
+zstyle ':completion:*:default' menu select=2  # 矢印キーで補完候補の移動
+zstyle ':completion:*' verbose yes
+zstyle ':completion:*' completer _expand _complete _match _prefix _approximate _list _history
+zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 compinit
+
+
+# 補完機能に関するオプション
+setopt auto_param_slash
+setopt mark_dirs
+setopt magic_equal_subst
+setopt complete_in_word
+setopt always_last_prompt
+setopt print_eight_bit
+setopt globdots
 
 alias sudo="sudo "
 
