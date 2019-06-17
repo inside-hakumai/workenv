@@ -138,9 +138,9 @@ alias sudo="sudo "
 ##  MacOS specific configuration  ##
 ####################################
 if [ "$TARGET_OS" = "MacOS" ]; then
-  # do nothing
-  :
-fi
+  if [ -d $HOME/Library/Android/sdk/platform-tools ]; then
+    export PATH=$HOME/Library/Android/sdk/platform-tools:$PATH
+  fi
 
 
 
