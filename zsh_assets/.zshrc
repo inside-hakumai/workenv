@@ -97,8 +97,15 @@ if [ -f ~/powerlevel9k/powerlevel9k.zsh-theme ]; then
     source `dirname $(readlink ~/.zshrc)`/powerlevel9k.zshrc
 fi
 
-source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
-source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+# zshのパッケージマネージャーzplugを有効化
+# Activate zplug
+export ZPLUG_HOME=/usr/local/opt/zplug
+source $ZPLUG_HOME/init.zsh
+zplug "carloscuesta/materialshell", use:materialshell, from:github, as:theme
+zplug "djui/alias-tips"
+zplug "zsh-users/zsh-autosuggestions"
+zplug "zsh-users/zsh-history-substring-search"
+zplug "zsh-users/zsh-completions"
 
 # fzfによるコマンド履歴の検索機能を有効化
 # Enable a function seraching command history by fzf
