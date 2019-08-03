@@ -1,6 +1,17 @@
 # disable "Welcome to fish, the friendly interactive shell"
 set fish_greeting
 
+set PROMPT_ARROW 
+set PROMPT_BG_BLACK_FG_WHITE (set_color -b black; and set_color white)
+set PROMPT_BG_BLUE_FG_BLACK (set_color -b blue; and set_color black)
+set PROMPT_BG_NORMAL_FG_BLUE (set_color -b normal; and set_color blue)
+set PROMPT_COLOR_NORMAL (set_color -b normal; and set_color normal)
+set fish_prompt_pwd_dir_length 2
+
+function fish_prompt --description 'Write out the prompt'
+    printf "$PROMPT_BG_BLACK_FG_WHITE %s $PROMPT_BG_BLUE_FG_BLACK$PROMPT_ARROW %s $PROMPT_BG_NORMAL_FG_BLUE$PROMPT_ARROW$PROMPT_COLOR_NORMAL " (whoami) (prompt_pwd)
+end
+
 # detect using OS
 set uname_val (uname)
 if [ "$uname_val" = 'Darwin' ]
