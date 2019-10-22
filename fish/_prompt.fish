@@ -2,6 +2,8 @@ set PROMPT_R_TRIANGLE   # PowerlineFontを導入することで表示でき�
 set PROMPT_L_TRIANGLE   # PowerlineFontを導入することで表示できる左向きの三角形アイコン
 set PROMPT_R_ARROW   # PowerlineFontを導入することで表示できる「>」のようなアイコン
 set PYTHON_ICON   # PowerlineFontを導入することで表示できるPythonのロゴマーク
+
+# TODO: あんまり使われてないので消す
 set pf_b (set_color black)
 set pb_b (set_color -b black)
 set pf_bl (set_color blue)
@@ -22,6 +24,7 @@ set fish_prompt_pwd_dir_length 2
 set CHECK_ICON 
 set EXIT_ICON "↵"
 
+# プロンプトに表示させる項目（<実行コマンド>/<背景色>/<文字色>）左から順に表示
 set prompt_fragments "whoami/black/white" "python_virtual_env_prompt/yellow/black" "prompt_pwd/blue/black"
 
 function exit_code_prompt
@@ -55,11 +58,6 @@ function prompt_border
   end
 end
 
-# fishのプロンプトが表示される前に、直前に実行されたコマンドのexit codeを環境変数に保存する
-function store_exit_code --on-event fish_prompt
-  set -g RETVAL "$status"
-end
-
 # fishのプロンプトの装飾
 function fish_prompt --description 'Write out the prompt'
   for fragment in $prompt_fragments
@@ -83,4 +81,9 @@ end
 # fishのプロンプト（右側）の装飾
 function fish_right_prompt --description 'Write out the right prompt'
   printf "%s" (exit_code_prompt)
+end
+
+# fishのプロンプトが表示される前に、直前に実行されたコマンドのexit codeを環境変数に保存する
+function store_exit_code --on-event fish_prompt
+  set -g RETVAL "$status"
 end
