@@ -2,6 +2,7 @@ set PROMPT_R_TRIANGLE   # PowerlineFontを導入することで表示でき�
 set PROMPT_L_TRIANGLE   # PowerlineFontを導入することで表示できる左向きの三角形アイコン
 set PROMPT_R_ARROW   # PowerlineFontを導入することで表示できる「>」のようなアイコン
 set PYTHON_ICON   # PowerlineFontを導入することで表示できるPythonのロゴマーク
+set GIT_BRANCH_ICON   # # PowerlineFontを導入することで表示できるVCSのブランチのアイコン
 
 set fish_prompt_pwd_dir_length 2
 
@@ -9,7 +10,7 @@ set CHECK_ICON 
 set EXIT_ICON "↵"
 
 # プロンプトに表示させる項目（<実行コマンド>/<背景色>/<文字色>）左から順に表示
-set prompt_fragments "whoami/black/white" "python_virtual_env_prompt/yellow/black" "prompt_pwd/blue/black"
+set prompt_fragments "whoami/black/white" "python_virtual_env_prompt/red/white" "prompt_pwd/blue/black" "git_current_branch_prompt/yellow/black"
 
 function exit_code_prompt
   if [ $RETVAL -eq 0 ]
@@ -22,6 +23,13 @@ end
 function python_virtual_env_prompt
   if set -q VIRTUAL_ENV
     echo -n -s $PYTHON_ICON "  " (basename $VIRTUAL_ENV)
+  end
+end
+
+function git_current_branch_prompt
+  set branch_name (git symbolic-ref --short HEAD 2> /dev/null)
+  if [ $status -eq 0 ]
+    echo $GIT_BRANCH_ICON $branch_name
   end
 end
 
