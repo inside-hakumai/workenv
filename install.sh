@@ -9,13 +9,11 @@ fi
 
 brew install git anyenv tmux zsh fish
 
-
-
-#if [ ! -e ~/workspace/Env ] ; then
-#  git clone https://github.com/inside-hakumai/Env.git ~/workspace/Env
-#  cd ~/workspace/Env
-#else
-#  cd ~/workspace/Env
-#  git chekcout master
-#  git pull origin master
-#fi
+if [ ! -e ~/workspace/Env ] ; then
+  git clone https://github.com/inside-hakumai/Env.git ~/workspace/Env
+  cd ~/workspace/Env
+else
+  cd ~/workspace/Env
+  git checkout master
+  git pull origin master
+fi
