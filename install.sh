@@ -17,7 +17,6 @@ function homebrew_libs() {
   brew ls --versions anyenv > /dev/null || brew install anyenv
   brew ls --versions tmux   > /dev/null || brew install tmux
   brew ls --versions zsh    > /dev/null || brew install zsh
-  brew ls --versions fish   > /dev/null || brew install fish
 }
 
 function repository() {
@@ -31,13 +30,18 @@ function repository() {
   fi
 }
 
-#mkdir -m700 "$HOME/.config"
-#mkdir -m700 "$HOME/.config/fish"
-#ln -s "$HOME/workspace/Env/fish/config.fish" "$HOME/.config/fish/config.fish"
-#ln -s "$HOME/workspace/Env/fish/fishfile" "$HOME/.config/fish/fishfile"
-#ln -s "$HOME/workspace/Env/fish/_prompt.fish" "$HOME/.config/fish/_prompt.fish"
-#
-#curl https://git.io/fisher --create-dirs -sLo ~/.config/fish/functions/fisher.fish
-#fish -c "fisher"
+function install_fish() {
+  brew ls --versions fish   > /dev/null || brew install fish
+
+  mkdir -m700 "$HOME/.config"
+  mkdir -m700 "$HOME/.config/fish"
+  ln -s "$HOME/workspace/Env/fish/config.fish" "$HOME/.config/fish/config.fish"
+  ln -s "$HOME/workspace/Env/fish/fishfile" "$HOME/.config/fish/fishfile"
+  ln -s "$HOME/workspace/Env/fish/_prompt.fish" "$HOME/.config/fish/_prompt.fish"
+
+  curl https://git.io/fisher --create-dirs -sLo ~/.config/fish/functions/fisher.fish
+  fish -c "fisher"
+}
+
 
 "$@"
