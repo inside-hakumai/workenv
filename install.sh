@@ -7,7 +7,14 @@ if ! (hash brew 2>/dev/null) ; then
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 fi
 
-brew install git anyenv tmux zsh fish
+brew update
+brew upgrade
+
+brew ls --versions git    > /dev/null || brew install git
+brew ls --versions anyenv > /dev/null || brew install anyenv
+brew ls --versions tmux   > /dev/null || brew install tmux
+brew ls --versions zsh    > /dev/null || brew install zsh
+brew ls --versions fish   > /dev/null || brew install fish
 
 if [ ! -e ~/workspace/Env ] ; then
   git clone https://github.com/inside-hakumai/Env.git ~/workspace/Env
