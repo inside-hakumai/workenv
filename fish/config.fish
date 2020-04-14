@@ -30,7 +30,7 @@ end
 
 # local / private config file
 [ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
-[ -f ~/Dropbox/configs/.fishconfig.private ]; source ~/Dropbox/configs/.fishconfig.private
+[ -f ~/Dropbox/configs/.fishconfig.private ]; and source ~/Dropbox/configs/.fishconfig.private
 
 # check if emacs application path is specified
 function emacs
