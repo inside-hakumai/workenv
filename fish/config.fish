@@ -28,6 +28,11 @@ if [ -e ~/bin ]
     set -x PATH ~/bin/ $PATH
 end
 
+# Cabal（Haskellのパッケージマネージャ）のライブラリの実行ファイルにPATHを張る
+if [ -e ~/.cabal/bin ]
+    set -x PATH ~/.cabal/bin $PATH
+end
+
 # local / private config file
 [ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
 [ -f ~/Dropbox/configs/.fishconfig.private ]; and source ~/Dropbox/configs/.fishconfig.private
