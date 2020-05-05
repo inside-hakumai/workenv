@@ -1,0 +1,5 @@
+#!/bin/bash
+
+set -e
+
+istats --no-graph cpu temp | grep -o -E '[0-9.]+°C'
