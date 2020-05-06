@@ -10,7 +10,7 @@ set CHECK_ICON 
 set EXIT_ICON "↵"
 
 # プロンプトに表示させる項目（<実行コマンド>/<背景色>/<文字色>）左から順に表示
-set prompt_fragments "whoami/black/white" "python_virtual_env_prompt/red/white" "prompt_pwd/blue/black" "git_current_branch_prompt/yellow/black"
+set prompt_fragments "whoami/black/white" "python_virtual_env_prompt/red/white" "prompt_pwd/#29b6f6/#2e3b42" "git_current_branch_prompt/#ffa726/#2e3b42"
 
 function exit_code_prompt
   if [ $RETVAL -eq 0 ]
