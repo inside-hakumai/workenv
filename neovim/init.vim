@@ -6,6 +6,7 @@ set expandtab                 " タブ入力をを空白に変換
 set list                      " 不可視文字を表示
 set ruler                     " カーソルの位置を表示
 set cursorline                " カーソル行の背景色を変える
+set termguicolors             " True Colorを使用
 
 " 'set line' で表示された行番号列の色の設定
 hi CursorLineNr ctermbg=16 ctermfg=grey
