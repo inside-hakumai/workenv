@@ -94,8 +94,8 @@ if [ -e $HOME/.nodebrew/current ]
     set -x PATH $HOME/.nodebrew/current/bin $PATH
 end
 
-# pyenv configuration
-
+# Pythonのvirtualenv使用時のプロンプト左端の(<env_name>)を非表示
+set -x VIRTUAL_ENV_DISABLE_PROMPT 1
 
 # golang configuration
 set -x GOPATH "$HOME/.go"
