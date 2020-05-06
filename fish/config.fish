@@ -83,10 +83,6 @@ if [ -f /usr/libexec/java_home ]
     set jhome (eval /usr/libexec/java_home -v 11 ^ /dev/null)
     if [ $status -eq 0 ]
         set -x JAVA_HOME $jhome
-    else if [ $status -eq 1 ]
-        echo "Notice: Failed to set JAVA_HOME" 1>&2
-    else
-        echo $status
     end
 end
 
@@ -99,29 +95,11 @@ if [ -e $HOME/.nodebrew/current ]
 end
 
 # pyenv configuration
-if [ -e $HOME/.pyenv ]
-    set -x PYENV_ROOT "$HOME/.pyenv"
-    # set -x PATH "$PYENV_ROOT/bin" $PATH
-    if builtin command -v pyenv > /dev/null
-        status --is-interactive; and source (pyenv init -| psub)
-    else
-        echo "[Notice] pyenv is not installed." >&2
-    end
-end
+
 
 # golang configuration
 set -x GOPATH "$HOME/.go"
 set -x PATH $PATH $GOPATH/bin
-
-# make "rbenv shell"available
-if [ -e $HOME/.rbenv ]
-    set -x PATH "$HOME/.rbenv/bin" $PATH
-    if builtin command -v rbenv > /dev/null
-        . (rbenv init - | psub)
-    else
-        echo "[Notice] rbenv is not installed." >&2
-    end
-end
 
 # add Emacs Cask path
 if [ -e $HOME/.cask/ ]
