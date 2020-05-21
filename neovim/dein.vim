@@ -18,6 +18,7 @@ if dein#load_state('/Users/inside-hakumai/.cache/dein')
   "call dein#add('Shougo/neosnippet.vim')
   "call dein#add('Shougo/neosnippet-snippets')
   call dein#add('vim-airline/vim-airline')
+  call dein#add('preservim/nerdtree')
 
   " Required:
   call dein#end()
