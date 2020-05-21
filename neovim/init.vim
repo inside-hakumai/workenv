@@ -15,3 +15,8 @@ hi CursorLineNr ctermbg=16 ctermfg=grey
 source ~/.config/nvim/dein.vim
 
 let g:airline_powerline_fonts = 1
+
+" C-n キーでNerdTreeの表示切り替え
+map <C-n> :NERDTreeToggle<CR>
+
+map <C-h> :CmdHelperToggle<CR>
