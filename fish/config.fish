@@ -97,10 +97,6 @@ end
 # Pythonのvirtualenv使用時のプロンプト左端の(<env_name>)を非表示
 set -x VIRTUAL_ENV_DISABLE_PROMPT 1
 
-# golang configuration
-set -x GOPATH "$HOME/.go"
-set -x PATH $PATH $GOPATH/bin
-
 # add Emacs Cask path
 if [ -e $HOME/.cask/ ]
     set -x PATH $HOME/.cask/bin $PATH
