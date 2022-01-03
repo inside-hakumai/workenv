@@ -15,9 +15,6 @@ end
 ##      Common configuration      ##
 ####################################
 
-# プロンプトの装飾のための設定を纏めたファイルを読み込む
-[ -f $__fish_config_dir/_prompt.fish ]; and source $__fish_config_dir/_prompt.fish
-
 set -x LC_ALL en_US.UTF-8
 set -x LANG en_US.UTF-8
 set -x CFLAGS -I(brew --prefix openssl)/include -I(xcrun --show-sdk-path)/usr/include
