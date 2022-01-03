@@ -21,13 +21,13 @@ set -x CFLAGS -I(brew --prefix openssl)/include -I(xcrun --show-sdk-path)/usr/in
 set -x LDFLAGS -L(brew --prefix openssl)/lib
 
 # standard PATH configuration
-set -x PATH ./bin $PATH
-[ -e ~/bin ]; and set -x PATH ~/bin/ $PATH
-[ -e /usr/local/sbin ]; set -x PATH /usr/local/sbin $PATH
+set -g fish_user_paths ./bin $fish_user_paths
+[ -e ~/bin ]; and set -g fish_user_paths ~/bin/ $fish_user_paths
+[ -e /usr/local/sbin ]; set -g fish_user_paths /usr/local/sbin $fish_user_paths
 
 # Cabal（Haskellのパッケージマネージャ）のライブラリの実行ファイルにPATHを張る
 if [ -e ~/.cabal/bin ]
-    set -x PATH ~/.cabal/bin $PATH
+    set -g fish_user_paths ~/.cabal/bin $fish_user_paths
 end
 
 # local / private config file
@@ -80,13 +80,13 @@ end
 set -x LSCOLORS gxfxbEaEBxxEhEhBaDaCaD
 
 # add nodebrew path
-[ -e $HOME/.nodebrew/current ]; and set -x PATH $HOME/.nodebrew/current/bin $PATH
+[ -e $HOME/.nodebrew/current ]; and set -g fish_user_paths $HOME/.nodebrew/current/bin $fish_user_paths
 
 # Pythonのvirtualenv使用時のプロンプト左端の(<env_name>)を非表示
 set -x VIRTUAL_ENV_DISABLE_PROMPT 1
 
 # add Emacs Cask path
-[ -e $HOME/.cask/ ]; and set -x PATH $HOME/.cask/bin $PATH
+[ -e $HOME/.cask/ ]; and set -g fish_user_paths $HOME/.cask/bin $fish_user_paths
 
 
 alias sudo="sudo "
