@@ -66,15 +66,7 @@ alias cd='cdl'
 # language configuration
 set -x LANG ja_JP.UTF-8
 
-# anyenv initialization
-anyenv init - fish | source
-
-# nodenv configuration
-set -x PATH $HOME/.anyenv/envs/nodenv/bin $PATH
-set -x PATH $NODENV_ROOT/shims $PATH
-
-# NODE_PATH configuration
-# set -x NODE_PATH /usr/local/lib/node_modules
+source (brew --prefix asdf)"/libexec/asdf.fish"
 
 # JAVA_HOME configuration
 if [ -f /usr/libexec/java_home ]
