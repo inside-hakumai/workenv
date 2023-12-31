@@ -64,8 +64,6 @@ alias cd='cdl'
 # language configuration
 set -x LANG ja_JP.UTF-8
 
-source (brew --prefix asdf)"/libexec/asdf.fish"
-
 # JAVA_HOME configuration
 if [ -f /usr/libexec/java_home ]
     set jhome (eval /usr/libexec/java_home -v 11 ^ /dev/null)
@@ -86,6 +84,7 @@ set -x VIRTUAL_ENV_DISABLE_PROMPT 1
 # add Emacs Cask path
 [ -e $HOME/.cask/ ]; and set -g fish_user_paths $HOME/.cask/bin $fish_user_paths
 
+rtx activate fish | source
 
 alias sudo="sudo "
 
@@ -105,3 +104,4 @@ if [ "$TARGET_OS" = "Linux" ]
 
 end
 
+starship init fish | source
