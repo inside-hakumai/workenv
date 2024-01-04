@@ -18,28 +18,15 @@ end
 set -x LC_ALL en_US.UTF-8
 set -x LANG en_US.UTF-8
 
-# standard PATH configuration
+# PATH設定
 set -g fish_user_paths ./bin $fish_user_paths
 [ -e ~/bin ]; and set -g fish_user_paths ~/bin/ $fish_user_paths
 [ -e /usr/local/sbin ]; set -g fish_user_paths /usr/local/sbin $fish_user_paths
-
-# Cabal（Haskellのパッケージマネージャ）のライブラリの実行ファイルにPATHを張る
-if [ -e ~/.cabal/bin ]
-    set -g fish_user_paths ~/.cabal/bin $fish_user_paths
-end
+[ -e ~/.cabal/bin ]; set -g fish_user_paths ~/.cabal/bin $fish_user_paths
 
 # local / private config file
 [ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
 [ -f ~/Dropbox/configs/.fishconfig.private ]; and source ~/Dropbox/configs/.fishconfig.private
-
-# check if emacs application path is specified
-function emacs
-    if [ ! -z "$EMACS_PATH" ]
-        eval $EMACS_PATH -nw $argv
-    else
-        /usr/bin/emacs -nw $argv
-    end
-end
 
 # shorthand aliases
 alias o='open'
@@ -75,14 +62,8 @@ end
 # add colors to result of ls
 set -x LSCOLORS gxfxbEaEBxxEhEhBaDaCaD
 
-# add nodebrew path
-[ -e $HOME/.nodebrew/current ]; and set -g fish_user_paths $HOME/.nodebrew/current/bin $fish_user_paths
-
 # Pythonのvirtualenv使用時のプロンプト左端の(<env_name>)を非表示
 set -x VIRTUAL_ENV_DISABLE_PROMPT 1
-
-# add Emacs Cask path
-[ -e $HOME/.cask/ ]; and set -g fish_user_paths $HOME/.cask/bin $fish_user_paths
 
 rtx activate fish | source
 
