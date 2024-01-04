@@ -1,3 +1,13 @@
+# PATH設定
+[ -e ~/bin ]; and fish_add_path ~/bin
+[ -e /usr/local/sbin ]; fish_add_path /usr/local/sbin
+[ -e ~/.cabal/bin ]; fish_add_path ~/.cabal/bin
+
+# local / private config file
+[ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
+[ -f ~/Dropbox/configs/.fishconfig.private ]; and source ~/Dropbox/configs/.fishconfig.private
+
+
 if status is-interactive
 
     # disable "Welcome to fish, the friendly interactive shell"
@@ -20,16 +30,6 @@ if status is-interactive
     set -x LC_ALL en_US.UTF-8
     set -x LANG en_US.UTF-8
 
-    # PATH設定
-    set -g fish_user_paths ./bin $fish_user_paths
-    [ -e ~/bin ]; and set -g fish_user_paths ~/bin/ $fish_user_paths
-    [ -e /usr/local/sbin ]; set -g fish_user_paths /usr/local/sbin $fish_user_paths
-    [ -e ~/.cabal/bin ]; set -g fish_user_paths ~/.cabal/bin $fish_user_paths
-
-    # local / private config file
-    [ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
-    [ -f ~/Dropbox/configs/.fishconfig.private ]; and source ~/Dropbox/configs/.fishconfig.private
-
     # shorthand aliases
     alias o='open'
     alias e='emacs'
@@ -37,10 +37,10 @@ if status is-interactive
     alias restart='exec $SHELL -l'
     alias gitg='git log --graph --full-history --all --color --pretty=format:"%x1b[31m%h%x09%x1b[32m%d%x1b[0m%x20%s"'
 
-    if test -f exa
+    if type exa > /dev/null
         alias ls='exa -laFg --icons'
     else
-        test "$TARGET_OS" = "MacOS"; and alias ls='exa -laFg --icons'
+        test "$TARGET_OS" = "MacOS"; and alias ls='ls -laFg --icons'
         test "$TARGET_OS" = "Linux"; and alias ls='ls -hGla --color=auto'
     end
 
@@ -67,7 +67,9 @@ if status is-interactive
     # Pythonのvirtualenv使用時のプロンプト左端の(<env_name>)を非表示
     set -x VIRTUAL_ENV_DISABLE_PROMPT 1
 
-    mise activate fish | source
+    if type mise > /dev/null
+        mise activate fish | source
+    end
 
     alias sudo="sudo "
 
@@ -87,6 +89,10 @@ if status is-interactive
 
     end
 
-    starship init fish | source
+
+
+    if type starship > /dev/null
+        starship init fish | source
+    end
 
 end
