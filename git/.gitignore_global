@@ -15,6 +15,7 @@ local_files/
 npm-debug.log
 .#*
 .vscode
+.mise.toml
 
 
 
