@@ -1,0 +1,23 @@
+{
+    "model": "opus",
+    "permissions": {
+      "allow": [
+        "Bash(ls:*)",
+        "Bash(find:*)",
+        "Bash(rg:*)",
+        "Bash(grep:*)",
+        "Bash(gh pr view:*)",
+        "Bash(gh pr diff:*)",
+        "Bash(gh pr list:*)",
+        "Bash(gh issue view:*)",
+        "Bash(git remote get-url:*)",
+        "mcp__github-server__get_pull_request",
+        "mcp__github-server__get_issue",
+        "mcp__github-server__get_pull_request_files",
+        "mcp__github-server__get_pull_request_diff",
+        "mcp__github-server__get_issue_comments",
+        "mcp__github-server__list_pull_requests",
+        "mcp__github-server__search_issues"
+      ]
+    }
+  }
