@@ -1,23 +1,104 @@
 {
-    "model": "opus",
-    "permissions": {
-      "allow": [
-        "Bash(ls:*)",
-        "Bash(find:*)",
-        "Bash(rg:*)",
-        "Bash(grep:*)",
-        "Bash(gh pr view:*)",
-        "Bash(gh pr diff:*)",
-        "Bash(gh pr list:*)",
-        "Bash(gh issue view:*)",
-        "Bash(git remote get-url:*)",
-        "mcp__github-server__get_pull_request",
-        "mcp__github-server__get_issue",
-        "mcp__github-server__get_pull_request_files",
-        "mcp__github-server__get_pull_request_diff",
-        "mcp__github-server__get_issue_comments",
-        "mcp__github-server__list_pull_requests",
-        "mcp__github-server__search_issues"
-      ]
-    }
+  "model": "opus",
+  "env": {
+    "BASH_DEFAULT_TIMEOUT_MS": "300000"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "Bash(diff:*)",
+      "Bash(tree:*)",
+      "Bash(git diff:*)",
+      "Bash(go test:*)",
+      "Bash(go list:*)",
+      "Bash(go doc:*)",
+      "Bash(go build:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(./gradlew compileTestKotlin:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx prettier:*)",
+      "Bash(npx eslint:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh issue view:*)",
+      "Bash(git remote get-url:*)",
+      "mcp__github-server__get_pull_request",
+      "mcp__github-server__get_issue",
+      "mcp__github-server__get_pull_request_files",
+      "mcp__github-server__get_pull_request_diff",
+      "mcp__github-server__get_issue_comments",
+      "mcp__github-server__list_pull_requests",
+      "mcp__github-server__search_issues",
+      "mcp__atlassian-server__getAccessibleAtlassianResources",
+      "mcp__atlassian-server__getJiraIssue",
+      "mcp__atlassian-server__atlassianUserInfo",
+      "mcp__atlassian-server__getVisibleJiraProjects"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(rm -rf:*)",
+      "Read(.env.*)",
+      "Read(id_rsa)",
+      "Read(id_ed25519)",
+      "Read(**/*token*)",
+      "Read(**/*key*)"
+    ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Codeが許可を求めています\" with title \"Claude Code\" subtitle \"確認待ち\" sound name \"Glass\"'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"タスクが完了しました\" with title \"Claude Code\" subtitle \"処理終了\" sound name \"Hero\"'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[$(date)][Bash] $(jq -r '.tool_input.command')\" >> ~/.claude/command_history.log"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path | select(endswith(\".go\"))' | xargs -r gofumpt -l -w"
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path | select(endswith(\".md\"))' | xargs -r markdownlint-cli2 --config ~/.markdownlint-cli2.jsonc --fix"
+          }
+        ]
+      }
+    ]
   }
+}
