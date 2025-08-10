@@ -1,0 +1,12 @@
+{
+    "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/v0.17.2/schema/markdownlint-cli2-config-schema.json",
+    "config": {
+        "blanks-around-lists": false,
+        "blanks-around-headings": false,
+        "no-alt-text": false,
+        "line-length": false,
+        "first-line-heading": false,
+        "fenced-code-language": false,
+        "no-duplicate-heading": false
+    }
+  }
