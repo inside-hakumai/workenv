@@ -1,0 +1,6 @@
+[tools]
+node = "22.20.0"
+"npm:@anthropic-ai/claude-code" = "2.0.14"
+"npm:@google/gemini-cli" = "0.8.2"
+"npm:@openai/codex" = "0.46.0"
+"lefthook" = "1.13.6"
