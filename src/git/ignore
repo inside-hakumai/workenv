@@ -17,6 +17,10 @@ npm-debug.log
 .vscode
 .mise.toml
 
+### AI Agent Related Files ###
+AGENTS.md
+CLAUDE.md
+
 
 
 # Created by https://www.gitignore.io/api/intellij+all
