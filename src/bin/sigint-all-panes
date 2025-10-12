@@ -1,0 +1,6 @@
+#!/usr/bin/env zsh
+
+for _pane in $(tmux list-panes -s -F "#P"); do
+  tmux send-keys -t "${_pane}" C-c
+done
+
