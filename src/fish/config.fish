@@ -1,8 +1,3 @@
-# PATH設定
-[ -e ~/bin ]; and fish_add_path ~/bin
-[ -e /usr/local/sbin ]; fish_add_path /usr/local/sbin
-[ -e ~/.cabal/bin ]; fish_add_path ~/.cabal/bin
-
 # local / private config file
 [ -f ~/.fishconfig.local ]; and source ~/.fishconfig.local
 [ -f ~/Dropbox/configs/.fishconfig.private ]; and source ~/Dropbox/configs/.fishconfig.private
