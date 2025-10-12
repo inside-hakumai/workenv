@@ -5,7 +5,8 @@ a.out*
 *.out.dSYM
 
 ### Directory for files which should **not** be monitored by git ###
-local_files/
+local_files
+local_docs
 
 ### Misc. ###
 *~
@@ -20,8 +21,15 @@ npm-debug.log
 ### AI Agent Related Files ###
 AGENTS.md
 CLAUDE.md
+GEMINI.md
 .specify
-
+.claude
+.cursor
+.gemini
+.specdd
+.tasks
+.cursorrules
+ihinspection
 
 
 # Created by https://www.gitignore.io/api/intellij+all
