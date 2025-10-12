@@ -48,14 +48,6 @@ if status is-interactive
     # language configuration
     set -x LANG ja_JP.UTF-8
 
-    # JAVA_HOME configuration
-    if [ -f /usr/libexec/java_home ]
-        set jhome (eval /usr/libexec/java_home -v 11 ^ /dev/null)
-        if [ $status -eq 0 ]
-            set -x JAVA_HOME $jhome
-        end
-    end
-
     # add colors to result of ls
     set -x LSCOLORS gxfxbEaEBxxEhEhBaDaCaD
 
