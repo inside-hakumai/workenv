@@ -7,6 +7,7 @@ a.out*
 ### Directory for files which should **not** be monitored by git ###
 local_files
 local_docs
+local_worktree/
 
 ### Misc. ###
 *~
@@ -29,6 +30,7 @@ GEMINI.md
 .specdd
 .tasks
 .cursorrules
+.serena
 ihinspection
 
 
