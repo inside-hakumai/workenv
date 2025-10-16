@@ -13,6 +13,12 @@ add_to_path "/usr/local/sbin"
 add_to_path "$HOME/.local/bin"
 
 
+# Safe-chain Zsh initialization script
+# https://github.com/AikidoSec/safe-chain
+if [ -f ~/.safe-chain/scripts/init-posix.sh ]; then
+  source ~/.safe-chain/scripts/init-posix.sh 
+fi
+
 
 # iTerm上で特定のプロファイルを選択している場合のみ、fish shellを起動する
 if [[ -o interactive ]] && [[ -z "$INTELLIJ_ENVIRONMENT_READER" ]] && [[ "$ITERM_PROFILE" == "Hakumai" ]]; then
