@@ -6,5 +6,10 @@ type ConfigInput = UserConfig | UserConfig[] | UserConfigFn;
 const defineConfig = untypedDefineConfig as (config: ConfigInput) => ConfigInput;
 
 export default defineConfig({
-  entry: ['./src/cli.tsx'],
+  entry: {
+    dopen: './src/cli.tsx',
+  },
+  outExtensions: () => ({
+    js: '',
+  }),
 });
