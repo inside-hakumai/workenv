@@ -192,4 +192,56 @@ describe('App', () => {
     expect(output).toContain('ディレクトリアクセスに失敗しました');
     expect(output).toContain('ユーザーデータディレクトリに書き込み権限がありません');
   });
+
+  test('プロファイル競合エラーが発生した場合、適切な警告メッセージを表示する', async () => {
+    // Given
+    // プロファイル競合エラーを返すモックが設定された状態
+    const args: ParsedCliArgs = {
+      url: 'https://example.com',
+      profile: 'conflict-profile',
+    };
+
+    vi.spyOn(createRemoteDebugSessionModule, 'createRemoteDebugSession').mockRejectedValue(
+      new Error('プロファイル conflict-profile は既に使用中です'),
+    );
+
+    // When
+    // アプリをレンダリングしてエラーハンドリングが行われたとき
+    const { lastFrame } = render(<App args={args} />);
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 20);
+    });
+
+    // Then
+    // プロファイル競合に関する警告が表示される
+    const output = lastFrame() ?? '';
+    expect(output).toContain('プロファイル conflict-profile は既に使用中です');
+  });
+
+  test('ポート競合エラーが発生した場合、推奨ポートを含むメッセージを表示する', async () => {
+    // Given
+    // ポート競合エラーを返すモックが設定された状態
+    const args: ParsedCliArgs = {
+      url: 'https://example.com',
+      profile: 'port-conflict-profile',
+      port: 9222,
+    };
+
+    vi.spyOn(createRemoteDebugSessionModule, 'createRemoteDebugSession').mockRejectedValue(
+      new Error('ポート9222は使用できません: ポートは既に使用されています 推奨ポート: 9223, 9224, 9225'),
+    );
+
+    // When
+    // アプリをレンダリングしてエラーハンドリングが行われたとき
+    const { lastFrame } = render(<App args={args} />);
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 20);
+    });
+
+    // Then
+    // ポート競合に関する警告と推奨ポートが表示される
+    const output = lastFrame() ?? '';
+    expect(output).toContain('ポート9222は使用できません');
+    expect(output).toContain('推奨ポート: 9223, 9224, 9225');
+  });
 });

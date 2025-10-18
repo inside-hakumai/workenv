@@ -87,4 +87,77 @@ describe('createSession', () => {
       port,
     });
   });
+
+  test('プロファイルが既に使用中の場合、エラーメッセージとともに例外を投げる', async () => {
+    // Given
+    // 既に同じプロファイル名でセッションが登録されている状態
+    const url = 'https://example.com';
+    const profileName = 'dev-test';
+    const port = 9300;
+    const chromePath = getChromeExecutablePath();
+    const userDataDir = createTemporaryUserDataDir(profileName);
+
+    vi.spyOn(detectChromeModule, 'detectChromeExecutable').mockReturnValue(chromePath);
+    vi.spyOn(browserProfile, 'resolveProfilePaths').mockReturnValue({
+      dataDirectory: userDataDir,
+      lockFilePath: join(userDataDir, 'SingletonLock'),
+    });
+    vi.spyOn(portsModule, 'autoAllocatePort').mockResolvedValue({
+      port,
+      requestedByUser: false,
+      validationOutcome: 'available',
+    });
+
+    // プロファイルチェックで既存セッションが見つかる場合をシミュレート
+    const sessionRegistryModule = await import('../../../src/infrastructure/session/sessionRegistry.js');
+    vi.spyOn(sessionRegistryModule, 'findSessionByProfile').mockReturnValue({
+      sessionId: 'existing-session',
+      profileName,
+      targetUrl: 'https://other.com',
+      port: 9222,
+      launchedAt: new Date(),
+      status: 'ready',
+    });
+
+    // When
+    // セッション作成を実行したとき
+
+    // Then
+    // プロファイル使用中エラーが投げられる
+    await expect(createSession({ url, profileName })).rejects.toThrow(`プロファイル ${profileName} は既に使用中です`);
+  });
+
+  test('ポート競合が発生した場合、推奨ポート付きエラーを投げる', async () => {
+    // Given
+    // 指定ポートが占有されている状態
+    const url = 'https://example.com';
+    const profileName = 'dev-test';
+    const requestedPort = 9222;
+    const chromePath = getChromeExecutablePath();
+    const userDataDir = createTemporaryUserDataDir(profileName);
+
+    vi.spyOn(detectChromeModule, 'detectChromeExecutable').mockReturnValue(chromePath);
+    vi.spyOn(browserProfile, 'resolveProfilePaths').mockReturnValue({
+      dataDirectory: userDataDir,
+      lockFilePath: join(userDataDir, 'SingletonLock'),
+    });
+    vi.spyOn(portsModule, 'autoAllocatePort').mockResolvedValue({
+      port: requestedPort,
+      requestedByUser: true,
+      validationOutcome: 'occupied',
+      errorMessage: 'ポートは既に使用されています',
+    });
+
+    const sessionRegistryModule = await import('../../../src/infrastructure/session/sessionRegistry.js');
+    vi.spyOn(sessionRegistryModule, 'findSessionByProfile').mockReturnValue(undefined);
+
+    // When
+    // セッション作成を実行したとき
+
+    // Then
+    // ポート競合エラーが投げられ、推奨ポートが含まれる
+    await expect(createSession({ url, profileName, port: requestedPort })).rejects.toThrow(
+      /ポート9222は使用できません/,
+    );
+  });
 });

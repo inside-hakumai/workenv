@@ -5,6 +5,8 @@
 import type { ParsedCliArgs } from '../cli/args.js';
 import { prepareProfile, updateLastLaunchedAt } from '../application/services/profileService.js';
 import { type CreateSessionResponse, createSession } from '../application/services/remoteDebuggingService.js';
+import { buildRemoteDebugSession } from '../domain/remoteDebugSession.js';
+import { registerSession } from '../infrastructure/session/sessionRegistry.js';
 
 /**
  * CLI入力からリモートデバッグセッションを作成する
@@ -22,6 +24,25 @@ export async function createRemoteDebugSession(args: ParsedCliArgs): Promise<Cre
     ...(args.chromePath !== undefined && { chromePath: args.chromePath }),
     ...(args.additionalArgs !== undefined && { additionalArgs: args.additionalArgs }),
   });
+
+  // セッションを登録
+  const remoteDebugSession = buildRemoteDebugSession({
+    profileName: args.profile,
+    targetUrl: args.url,
+    port: session.port,
+    initialStatus: 'ready',
+  });
+
+  // SessionIdを合わせる
+  const registeredSession = {
+    ...remoteDebugSession,
+    sessionId: session.sessionId,
+    wsEndpoint: session.wsEndpoint,
+    chromeProcessPid: session.chromeProcessPid,
+    launchedAt: session.profile.lastLaunchedAt ?? new Date(),
+  };
+
+  registerSession(registeredSession);
 
   const launchedAt = session.profile.lastLaunchedAt ?? new Date();
   const updatedProfile = await updateLastLaunchedAt(args.profile, launchedAt);

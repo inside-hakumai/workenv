@@ -76,12 +76,12 @@ description: "Task list template for feature implementation"
 **Goal**: 別のプロファイルやポート番号で複数回コマンドを実行しても競合せず起動できる  
 **Independent Test**: 異なるプロファイル名やポート番号で複数回コマンドを実行し互いに干渉しないことを確認する
 
-- [ ] T026 [US3] executables/src/infrastructure/session/sessionRegistry.ts を追加し アクティブセッション/プロファイルロックを追跡して重複起動を防ぐ
-- [ ] T027 [P] [US3] executables/src/infrastructure/ports/suggestPorts.ts に ポート競合時の代替ポート候補生成ロジックを実装する
-- [ ] T028 [US3] executables/src/application/services/remoteDebuggingService.ts を拡張し セッション登録と競合検知、推奨ポート付きエラーを返せるようにする
-- [ ] T029 [US3] executables/src/application/contracts/endSession.ts に `/remote-debugging/sessions/{sessionId}` DELETE 契約を実装し セッション終了を通知できるようにする
-- [ ] T030 [US3] executables/src/app.tsx を更新し 複数セッション運用時の警告・代替ポート提案・手動終了手順を表示する
-- [ ] T031 [US3] executables/src/usecase/createRemoteDebugSession.ts を拡張し セッション登録/解除とポート提案メッセージの整形を行う
+- [X] T026 [US3] executables/src/infrastructure/session/sessionRegistry.ts を追加し アクティブセッション/プロファイルロックを追跡して重複起動を防ぐ
+- [X] T027 [P] [US3] executables/src/infrastructure/ports/suggestPorts.ts に ポート競合時の代替ポート候補生成ロジックを実装する
+- [X] T028 [US3] executables/src/application/services/remoteDebuggingService.ts を拡張し セッション登録と競合検知、推奨ポート付きエラーを返せるようにする
+- [X] T029 [US3] executables/src/application/contracts/endSession.ts に `/remote-debugging/sessions/{sessionId}` DELETE 契約を実装し セッション終了を通知できるようにする
+- [X] T030 [US3] executables/src/app.tsx を更新し 複数セッション運用時の警告・代替ポート提案・手動終了手順を表示する
+- [X] T031 [US3] executables/src/usecase/createRemoteDebugSession.ts を拡張し セッション登録/解除とポート提案メッセージの整形を行う
 
 **Checkpoint**: 並列起動時の競合制御とセッション管理が整い、チーム同時利用が可能になる
 

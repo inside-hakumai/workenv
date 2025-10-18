@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ParsedCliArgs } from '../../src/cli/args.js';
 
 const prepareProfile = vi.fn();
@@ -12,6 +12,21 @@ const createSession = vi.fn();
 vi.mock('../../src/application/services/remoteDebuggingService.js', () => ({
   createSession,
 }));
+
+const registerSession = vi.fn();
+const unregisterSession = vi.fn();
+const clearAllSessions = vi.fn();
+vi.mock('../../src/infrastructure/session/sessionRegistry.js', () => ({
+  registerSession,
+  unregisterSession,
+  clearAllSessions,
+  findSessionByProfile: vi.fn(),
+  findSessionById: vi.fn(),
+}));
+
+beforeEach(() => {
+  clearAllSessions();
+});
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -79,6 +94,15 @@ describe('createRemoteDebugSession usecase', () => {
     expect(response.profile.dataDirectory).toBe(profileState.dataDirectory);
     expect(response.profile.locked).toBe(false);
     expect(response.profile.lastLaunchedAt?.toISOString()).toBe(sessionLaunchTime.toISOString());
+
+    // セッションが登録されることを確認
+    expect(registerSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'session-001',
+        profileName: args.profile,
+        port: args.port,
+      }),
+    );
   });
 
   test('プロファイル準備でエラーが発生した場合、そのエラーを呼び出し元へ伝播する', async () => {
@@ -99,9 +123,10 @@ describe('createRemoteDebugSession usecase', () => {
     const act = async () => createRemoteDebugSession(args);
 
     // Then
-    // エラーが伝播し、セッション作成は呼び出されない
+    // エラーが伝播し、セッション作成は呼び出されず、セッションも登録されない
     await expect(act()).rejects.toBe(error);
     expect(createSession).not.toHaveBeenCalled();
     expect(updateLastLaunchedAt).not.toHaveBeenCalled();
+    expect(registerSession).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,8 @@ import { detectChromeExecutable } from '../../infrastructure/chrome/detectChrome
 import { buildChromeArguments } from '../../infrastructure/chrome/chromeArguments.js';
 import { spawnChrome } from '../../infrastructure/chrome/spawnChrome.js';
 import { autoAllocatePort } from '../../infrastructure/ports/autoAllocatePort.js';
+import { findSessionByProfile } from '../../infrastructure/session/sessionRegistry.js';
+import { suggestAlternativePorts } from '../../infrastructure/ports/suggestPorts.js';
 
 /**
  * セッション作成リクエスト
@@ -65,6 +67,12 @@ export type CreateSessionResponse = {
 export async function createSession(request: CreateSessionRequest): Promise<CreateSessionResponse> {
   const startTime = Date.now();
 
+  // 0. プロファイル競合チェック
+  const existingSession = findSessionByProfile(request.profileName);
+  if (existingSession) {
+    throw new Error(`プロファイル ${request.profileName} は既に使用中です`);
+  }
+
   // 1. Chrome実行ファイルのパスを検出
   const executablePath = request.chromePath ?? detectChromeExecutable();
 
@@ -75,7 +83,11 @@ export async function createSession(request: CreateSessionRequest): Promise<Crea
   const portResult = await autoAllocatePort(request.port);
 
   if (portResult.validationOutcome !== 'available') {
-    throw new Error(`ポート${portResult.port}は使用できません: ${portResult.errorMessage ?? '不明なエラー'}`);
+    const suggestedPorts = suggestAlternativePorts(portResult.port);
+    const suggestionMessage = suggestedPorts.length > 0 ? ` 推奨ポート: ${suggestedPorts.join(', ')}` : '';
+    throw new Error(
+      `ポート${portResult.port}は使用できません: ${portResult.errorMessage ?? '不明なエラー'}${suggestionMessage}`,
+    );
   }
 
   // 4. Chrome引数を構築
