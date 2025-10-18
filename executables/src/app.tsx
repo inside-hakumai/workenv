@@ -1,4 +1,4 @@
-import { Box, Text } from 'ink';
+import { Box, Spacer, Text } from 'ink';
 import { useEffect, useMemo, useState } from 'react';
 import type { ParsedCliArgs } from './cli/args.js';
 import type { CreateSessionResponse } from './application/services/remoteDebuggingService.js';
@@ -82,13 +82,16 @@ export default function App({ args }: Props) {
   const { response } = state;
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" gap={1}>
       <Text color="green">✓ Chrome起動成功</Text>
-      <ProfileSummary profile={response.profile} />
-      <Text>ポート: {response.port}</Text>
-      <Text>DevTools: {response.wsEndpoint}</Text>
-      {response.chromeProcessPid ? <Text>プロセスID: {response.chromeProcessPid}</Text> : null}
-      {response.launchDurationMs ? <Text>起動時間: {response.launchDurationMs}ms</Text> : null}
+
+      <Box flexDirection="column" borderStyle="single" padding={1}>
+        <ProfileSummary profile={response.profile} />
+        <Text>ポート: {response.port}</Text>
+        <Text>DevTools: {response.wsEndpoint}</Text>
+        {response.chromeProcessPid ? <Text>プロセスID: {response.chromeProcessPid}</Text> : null}
+        {response.launchDurationMs ? <Text>起動時間: {response.launchDurationMs}ms</Text> : null}
+      </Box>
     </Box>
   );
 }
