@@ -5,7 +5,11 @@ import App from '../src/app.js';
 import type { ParsedCliArgs } from '../src/cli/args.js';
 import type { CreateSessionResponse } from '../src/application/services/remoteDebuggingService.js';
 import * as createRemoteDebugSessionModule from '../src/usecase/createRemoteDebugSession.js';
-import { cleanupChromeTestArtifacts, createTempUserDataDir, trackChromeProcess } from './helpers/chromeTestUtils.js';
+import {
+  cleanupChromeTestArtifacts,
+  createTemporaryUserDataDir,
+  trackChromeProcess,
+} from './helpers/chromeTestUtils.js';
 
 describe('App', () => {
   afterEach(() => {
@@ -21,7 +25,7 @@ describe('App', () => {
       profile: 'test-profile',
     };
 
-    const userDataDir = createTempUserDataDir(args.profile);
+    const userDataDir = createTemporaryUserDataDir(args.profile);
     const chromeProcessPid = 4242;
     const port = 9555;
     const lastLaunchedAt = new Date('2024-01-01T00:00:00Z');
@@ -42,7 +46,7 @@ describe('App', () => {
     const createRemoteDebugSessionMock = vi
       .spyOn(createRemoteDebugSessionModule, 'createRemoteDebugSession')
       .mockImplementation(
-        () =>
+        async () =>
           new Promise<CreateSessionResponse>(resolve => {
             setTimeout(() => {
               trackChromeProcess(mockResponse.chromeProcessPid);
@@ -52,7 +56,7 @@ describe('App', () => {
       );
 
     // スパイを設定してconsole.errorをキャプチャ
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     // When
     // コンポーネントをレンダリングし、非同期処理が完了する前にアンマウントしたとき
@@ -62,7 +66,9 @@ describe('App', () => {
     unmount();
 
     // 非同期処理が完了するのを待つ
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 100);
+    });
 
     // Then
     // React 18以降では、アンマウント後のsetStateは警告を出さないが、
@@ -89,7 +95,7 @@ describe('App', () => {
       profile: 'test-profile',
     };
 
-    const userDataDir = createTempUserDataDir(args1.profile);
+    const userDataDir = createTemporaryUserDataDir(args1.profile);
     const chromeProcessPid = 5252;
     const port = 9556;
     const mockResponse: CreateSessionResponse = {
@@ -108,9 +114,9 @@ describe('App', () => {
     const createRemoteDebugSessionMock = vi
       .spyOn(createRemoteDebugSessionModule, 'createRemoteDebugSession')
       .mockImplementation(async () => {
-      trackChromeProcess(mockResponse.chromeProcessPid);
-      return mockResponse;
-    });
+        trackChromeProcess(mockResponse.chromeProcessPid);
+        return mockResponse;
+      });
 
     // When
     // 最初のargsでレンダリング

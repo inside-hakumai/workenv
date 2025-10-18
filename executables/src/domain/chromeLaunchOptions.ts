@@ -20,7 +20,7 @@ export type ChromeLaunchOptions = {
  * 安全なChromeフラグのホワイトリスト
  * セキュリティリスクのあるフラグを除外する
  */
-const SAFE_FLAG_WHITELIST = new Set([
+const safeFlagAllowList = new Set([
   // ウィンドウ・表示関連
   '--window-size',
   '--window-position',
@@ -52,7 +52,7 @@ const SAFE_FLAG_WHITELIST = new Set([
  * 危険なフラグのブラックリスト
  * セキュリティリスクがあるため拒否する
  */
-const DANGEROUS_FLAG_BLACKLIST = new Set([
+const dangerousFlagBlockList = new Set([
   '--disable-web-security',
   '--allow-running-insecure-content',
   '--unsafely-treat-insecure-origin-as-secure',
@@ -87,13 +87,13 @@ export function filterSafeFlags(additionalArgs: string[]): {
     const flagName = extractFlagName(flag);
 
     // ブラックリストチェック
-    if (DANGEROUS_FLAG_BLACKLIST.has(flagName)) {
+    if (dangerousFlagBlockList.has(flagName)) {
       rejected.push(flag);
       continue;
     }
 
     // ホワイトリストチェック
-    if (SAFE_FLAG_WHITELIST.has(flagName)) {
+    if (safeFlagAllowList.has(flagName)) {
       allowed.push(flag);
     } else {
       rejected.push(flag);

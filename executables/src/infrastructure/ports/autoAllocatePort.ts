@@ -44,7 +44,7 @@ export async function autoAllocatePort(userPort: number | undefined): Promise<Po
       });
     });
 
-    // port 0を指定するとOSが空きポートを自動割り当て
+    // Port 0を指定するとOSが空きポートを自動割り当て
     server.listen(0, '127.0.0.1');
   });
 }

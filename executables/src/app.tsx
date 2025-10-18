@@ -19,22 +19,26 @@ export default function App({ args }: Props) {
   useEffect(() => {
     let mounted = true;
 
-    createRemoteDebugSession(args)
-      .then(response => {
+    const run = async () => {
+      try {
+        const response = await createRemoteDebugSession(args);
         if (mounted) {
           setState({ status: 'success', response });
         }
-      })
-      .catch((error: Error) => {
+      } catch (error: unknown) {
         if (mounted) {
-          setState({ status: 'error', error });
+          const cause = error instanceof Error ? error : new Error('予期せぬエラーが発生しました');
+          setState({ status: 'error', error: cause });
         }
-      });
+      }
+    };
+
+    void run();
 
     return () => {
       mounted = false;
     };
-  }, [args.url, args.profile, args.port, args.chromePath, args.additionalArgs]);
+  }, [args]);
 
   if (state.status === 'loading') {
     return (
@@ -60,8 +64,8 @@ export default function App({ args }: Props) {
       <Text>プロファイル: {response.profile.profileName}</Text>
       <Text>ポート: {response.port}</Text>
       <Text>DevTools: {response.wsEndpoint}</Text>
-      {response.chromeProcessPid && <Text>プロセスID: {response.chromeProcessPid}</Text>}
-      {response.launchDurationMs && <Text>起動時間: {response.launchDurationMs}ms</Text>}
+      {response.chromeProcessPid ? <Text>プロセスID: {response.chromeProcessPid}</Text> : null}
+      {response.launchDurationMs ? <Text>起動時間: {response.launchDurationMs}ms</Text> : null}
     </Box>
   );
 }

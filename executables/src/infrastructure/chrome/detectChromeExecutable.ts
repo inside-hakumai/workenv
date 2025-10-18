@@ -2,6 +2,7 @@
  * Chrome実行ファイルの検出ロジック
  */
 
+import process from 'node:process';
 import { accessSync, constants as fsConstants } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { ChromeNotFoundError } from '../../shared/errors.js';
@@ -9,7 +10,7 @@ import { ChromeNotFoundError } from '../../shared/errors.js';
 /**
  * プラットフォーム別のChrome既定パス
  */
-const DEFAULT_CHROME_PATHS: Record<string, string[]> = {
+const defaultChromePaths: Record<string, string[]> = {
   darwin: [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
@@ -40,17 +41,17 @@ function isExecutable(path: string): boolean {
 }
 
 /**
- * whichコマンドでChrome実行ファイルを探す
+ * WhichコマンドでChrome実行ファイルを探す
  *
  * @returns 見つかったパス、見つからない場合はnull
  */
-function findChromeViaWhich(): string | null {
+function findChromeViaWhich(): string | undefined {
   const commands = ['google-chrome-stable', 'google-chrome', 'chromium-browser', 'chromium'];
 
   for (const command of commands) {
     try {
       const result = execSync(`which ${command}`, {
-        encoding: 'utf-8',
+        encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
       });
       const path = result.trim();
@@ -58,12 +59,12 @@ function findChromeViaWhich(): string | null {
         return path;
       }
     } catch {
-      // whichが失敗した場合は次のコマンドを試す
+      // Whichが失敗した場合は次のコマンドを試す
       continue;
     }
   }
 
-  return null;
+  return undefined;
 }
 
 /**
@@ -84,12 +85,13 @@ export function detectChromeExecutable(): string {
     if (isExecutable(chromePathEnv)) {
       return chromePathEnv;
     }
+
     throw new ChromeNotFoundError(`CHROME_PATH環境変数で指定されたパスが実行可能ではありません: ${chromePathEnv}`);
   }
 
   // 2. プラットフォーム別の既定パスを探索
-  const platform = process.platform;
-  const defaultPaths = DEFAULT_CHROME_PATHS[platform] ?? [];
+  const { platform } = process;
+  const defaultPaths = defaultChromePaths[platform] ?? [];
 
   for (const path of defaultPaths) {
     if (isExecutable(path)) {

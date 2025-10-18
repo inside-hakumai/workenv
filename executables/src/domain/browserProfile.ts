@@ -4,12 +4,7 @@
 
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import {
-  PROFILE_NAME_REGEX,
-  PROFILE_NAME_MAX_LENGTH,
-  PROFILE_ROOT_DIR,
-  SESSION_LOCK_FILE,
-} from '../shared/constants.js';
+import { profileNameRegex, profileNameMaxLength, profileRootDir, sessionLockFile } from '../shared/constants.js';
 import { ConfigurationError } from '../shared/errors.js';
 
 /**
@@ -23,9 +18,9 @@ export type BrowserProfile = {
   /** セッションロックファイルの絶対パス */
   lockFilePath: string;
   /** プロファイル作成日時 */
-  createdAt: Date | null;
+  createdAt: Date | undefined;
   /** 最終起動日時 */
-  lastLaunchedAt: Date | null;
+  lastLaunchedAt: Date | undefined;
   /** Chromeバージョン（オプション） */
   chromeVersion?: string;
 };
@@ -46,14 +41,14 @@ export function validateBrowserProfileName(profileName: string): ProfileNameVali
     return { valid: false, reason: 'プロファイル名は空にできません' };
   }
 
-  if (profileName.length > PROFILE_NAME_MAX_LENGTH) {
+  if (profileName.length > profileNameMaxLength) {
     return {
       valid: false,
-      reason: `プロファイル名は${PROFILE_NAME_MAX_LENGTH}文字以下である必要があります`,
+      reason: `プロファイル名は${profileNameMaxLength}文字以下である必要があります`,
     };
   }
 
-  if (!PROFILE_NAME_REGEX.test(profileName)) {
+  if (!profileNameRegex.test(profileName)) {
     return {
       valid: false,
       reason: 'プロファイル名は小文字英数字、ハイフン(-)、アンダースコア(_)のみ使用できます',
@@ -79,8 +74,8 @@ export function resolveProfilePaths(profileName: string): {
     throw new ConfigurationError(`無効なプロファイル名: ${validation.reason}`);
   }
 
-  const dataDirectory = join(homedir(), PROFILE_ROOT_DIR, profileName);
-  const lockFilePath = join(dataDirectory, SESSION_LOCK_FILE);
+  const dataDirectory = join(homedir(), profileRootDir, profileName);
+  const lockFilePath = join(dataDirectory, sessionLockFile);
 
   return {
     dataDirectory,

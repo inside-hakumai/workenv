@@ -34,7 +34,7 @@ export type RemoteDebugSession = {
 /**
  * セッション構築パラメータ
  */
-export type BuildSessionParams = {
+export type BuildSessionParameters = {
   /** プロファイル名 */
   profileName: string;
   /** ターゲットURL */
@@ -51,13 +51,13 @@ export type BuildSessionParams = {
  * @param params - セッション構築パラメータ
  * @returns 新しいリモートデバッグセッション
  */
-export function buildRemoteDebugSession(params: BuildSessionParams): RemoteDebugSession {
+export function buildRemoteDebugSession(parameters: BuildSessionParameters): RemoteDebugSession {
   return {
     sessionId: randomUUID(),
-    profileName: params.profileName,
-    targetUrl: params.targetUrl,
-    port: params.port,
+    profileName: parameters.profileName,
+    targetUrl: parameters.targetUrl,
+    port: parameters.port,
     launchedAt: new Date(),
-    status: params.initialStatus ?? 'launching',
+    status: parameters.initialStatus ?? 'launching',
   };
 }

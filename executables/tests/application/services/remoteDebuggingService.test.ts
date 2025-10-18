@@ -1,5 +1,5 @@
-import { expect, test, describe, vi, afterEach } from 'vitest';
 import { join } from 'node:path';
+import { expect, test, describe, vi, afterEach } from 'vitest';
 import { createSession } from '../../../src/application/services/remoteDebuggingService.js';
 import * as browserProfile from '../../../src/domain/browserProfile.js';
 import * as detectChromeModule from '../../../src/infrastructure/chrome/detectChromeExecutable.js';
@@ -8,7 +8,7 @@ import * as spawnChromeModule from '../../../src/infrastructure/chrome/spawnChro
 import * as portsModule from '../../../src/infrastructure/ports/autoAllocatePort.js';
 import {
   cleanupChromeTestArtifacts,
-  createTempUserDataDir,
+  createTemporaryUserDataDir,
   getChromeExecutablePath,
   trackChromeProcess,
 } from '../../helpers/chromeTestUtils.js';
@@ -26,9 +26,9 @@ describe('createSession', () => {
     const profileName = 'dev-test';
     const port = 9300;
     const chromePath = getChromeExecutablePath();
-    const userDataDir = createTempUserDataDir(profileName);
+    const userDataDir = createTemporaryUserDataDir(profileName);
     const chromeArgs = [`--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`, '--no-first-run', url];
-    const chromeProcessPid = 54321;
+    const chromeProcessPid = 54_321;
     const launchedAt = new Date('2024-01-01T00:00:00Z');
 
     vi.spyOn(detectChromeModule, 'detectChromeExecutable').mockReturnValue(chromePath);

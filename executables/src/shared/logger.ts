@@ -10,6 +10,20 @@ import React from 'react';
  */
 export type LogLevel = 'info' | 'success' | 'warning' | 'error';
 
+const colorByLevel: Record<LogLevel, string> = {
+  info: 'cyan',
+  success: 'green',
+  warning: 'yellow',
+  error: 'red',
+};
+
+const prefixByLevel: Record<LogLevel, string> = {
+  info: 'ℹ',
+  success: '✔',
+  warning: '⚠',
+  error: '✖',
+};
+
 /**
  * ログメッセージの色を取得する
  *
@@ -17,17 +31,7 @@ export type LogLevel = 'info' | 'success' | 'warning' | 'error';
  * @returns Inkのcolor属性に対応する色名
  */
 function getColorForLevel(level: LogLevel): string {
-  switch (level) {
-    case 'success':
-      return 'green';
-    case 'warning':
-      return 'yellow';
-    case 'error':
-      return 'red';
-    case 'info':
-    default:
-      return 'cyan';
-  }
+  return colorByLevel[level];
 }
 
 /**
@@ -37,17 +41,7 @@ function getColorForLevel(level: LogLevel): string {
  * @returns プレフィックス記号
  */
 function getPrefixForLevel(level: LogLevel): string {
-  switch (level) {
-    case 'success':
-      return '✔';
-    case 'warning':
-      return '⚠';
-    case 'error':
-      return '✖';
-    case 'info':
-    default:
-      return 'ℹ';
-  }
+  return prefixByLevel[level];
 }
 
 /**

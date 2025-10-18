@@ -3,8 +3,7 @@
  */
 
 import type { ParsedCliArgs } from '../cli/args.js';
-import type { CreateSessionResponse } from '../application/services/remoteDebuggingService.js';
-import { createSession } from '../application/services/remoteDebuggingService.js';
+import { type CreateSessionResponse, createSession } from '../application/services/remoteDebuggingService.js';
 
 /**
  * CLI入力からリモートデバッグセッションを作成する

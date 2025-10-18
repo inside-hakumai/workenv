@@ -1,9 +1,11 @@
+import { Buffer } from 'node:buffer';
 import { EventEmitter } from 'node:events';
-import { expect, test, describe, vi, beforeEach, afterEach } from 'vitest';
+import process from 'node:process';
 import * as childProcess from 'node:child_process';
+import { expect, test, describe, vi, beforeEach, afterEach } from 'vitest';
 import {
   cleanupChromeTestArtifacts,
-  createTempUserDataDir,
+  createTemporaryUserDataDir,
   getChromeExecutablePath,
   trackChromeProcess,
 } from '../../helpers/chromeTestUtils.js';
@@ -49,9 +51,9 @@ describe('spawnChrome', () => {
     // Given
     // spawn呼び出しをモックし、エラーを発生させる状態
     const mockProcess = createMockChromeProcess();
-    spawnMock.mockReturnValue(mockProcess as any);
+    spawnMock.mockReturnValue(mockProcess as unknown as childProcess.ChildProcessWithoutNullStreams);
 
-    const params = {
+    const parameters = {
       executablePath: '/mock/chrome',
       args: ['--arg'],
       profileName: 'test',
@@ -63,7 +65,7 @@ describe('spawnChrome', () => {
 
     // When
     // Chrome起動を試行し、エラーをキャッチしたとき
-    const spawnPromise = spawnChrome(params);
+    const spawnPromise = spawnChrome(parameters);
     setTimeout(() => {
       mockProcess.emit('error', new Error('Mock error'));
     }, 0);
@@ -74,16 +76,15 @@ describe('spawnChrome', () => {
     // イベントリスナーが適切に削除される
     // （実装後に検証）
     expect(removeListenerSpy).toHaveBeenCalled();
-
   });
 
   test('成功時にイベントリスナーとタイムアウトがクリーンアップされる', async () => {
     // Given
     // spawn呼び出しをモックし、正常に起動する状態
-    const mockProcess = createMockChromeProcess(12345);
-    spawnMock.mockReturnValue(mockProcess as any);
+    const mockProcess = createMockChromeProcess(12_345);
+    spawnMock.mockReturnValue(mockProcess as unknown as childProcess.ChildProcessWithoutNullStreams);
 
-    const params = {
+    const parameters = {
       executablePath: '/mock/chrome',
       args: ['--arg'],
       profileName: 'test',
@@ -93,7 +94,7 @@ describe('spawnChrome', () => {
 
     // When
     // Chrome起動が成功したとき
-    const spawnPromise = spawnChrome(params);
+    const spawnPromise = spawnChrome(parameters);
     setTimeout(() => {
       mockProcess.stderr.emit(
         'data',
@@ -117,7 +118,7 @@ describe('spawnChrome', () => {
     const profileName = 'dev';
     const port = 9222;
     const executablePath = getChromeExecutablePath();
-    const userDataDir = createTempUserDataDir(profileName);
+    const userDataDir = createTemporaryUserDataDir(profileName);
     const args = [
       `--remote-debugging-port=${port}`,
       `--user-data-dir=${userDataDir}`,
@@ -128,8 +129,8 @@ describe('spawnChrome', () => {
 
     // When
     // Chrome起動を実行したとき
-    const mockProcess = createMockChromeProcess(67890);
-    spawnMock.mockReturnValue(mockProcess as any);
+    const mockProcess = createMockChromeProcess(67_890);
+    spawnMock.mockReturnValue(mockProcess as unknown as childProcess.ChildProcessWithoutNullStreams);
 
     const spawnPromise = spawnChrome({
       executablePath,
@@ -163,7 +164,7 @@ describe('spawnChrome', () => {
     const profileName = 'qa';
     const port = 9223;
     const executablePath = getChromeExecutablePath();
-    const userDataDir = createTempUserDataDir(profileName);
+    const userDataDir = createTemporaryUserDataDir(profileName);
     const args = [
       `--remote-debugging-port=${port}`,
       `--user-data-dir=${userDataDir}`,
@@ -174,8 +175,8 @@ describe('spawnChrome', () => {
 
     // When
     // Chrome起動を実行したとき
-    const mockProcess = createMockChromeProcess(78901);
-    spawnMock.mockReturnValue(mockProcess as any);
+    const mockProcess = createMockChromeProcess(78_901);
+    spawnMock.mockReturnValue(mockProcess as unknown as childProcess.ChildProcessWithoutNullStreams);
 
     const spawnPromise = spawnChrome({
       executablePath,
@@ -203,34 +204,33 @@ describe('spawnChrome', () => {
     expect(result.port).toBe(9223);
   });
 
+  test('エラーが発生した場合、イベントリスナーとタイムアウトがクリーンアップされる', async () => {
+    // Given
+    // spawn呼び出しをモックし、エラーを発生させる状態
+    const mockProcess = createMockChromeProcess();
+    spawnMock.mockReturnValue(mockProcess as unknown as childProcess.ChildProcessWithoutNullStreams);
 
- test('エラーが発生した場合、イベントリスナーとタイムアウトがクリーンアップされる', async () => {
-     // Given
-     // spawn呼び出しをモックし、エラーを発生させる状態
-     const mockProcess = createMockChromeProcess();
-     spawnMock.mockReturnValue(mockProcess as any);
+    const parameters = {
+      executablePath: '/mock/chrome',
+      args: ['--arg'],
+      profileName: 'test',
+      targetUrl: 'https://example.com',
+      port: 9222,
+    };
 
-     const params = {
-       executablePath: '/mock/chrome',
-       args: ['--arg'],
-       profileName: 'test',
-       targetUrl: 'https://example.com',
-       port: 9222,
-     };
+    const removeListenerSpy = vi.spyOn(mockProcess.stderr, 'removeListener');
 
-     const removeListenerSpy = vi.spyOn(mockProcess.stderr, 'removeListener');
+    // When
+    // Chrome起動を試行し、エラーをキャッチしたとき
+    const spawnPromise = spawnChrome(parameters);
+    setTimeout(() => {
+      mockProcess.emit('error', new Error('Mock error'));
+    }, 0);
 
-     // When
-     // Chrome起動を試行し、エラーをキャッチしたとき
-     const spawnPromise = spawnChrome(params);
-     setTimeout(() => {
-       mockProcess.emit('error', new Error('Mock error'));
-     }, 0);
+    await expect(spawnPromise).rejects.toThrow();
 
-     await expect(spawnPromise).rejects.toThrow();
-
-     // Then
-     // イベントリスナーが削除される
-     expect(removeListenerSpy).toHaveBeenCalled();
-   });
+    // Then
+    // イベントリスナーが削除される
+    expect(removeListenerSpy).toHaveBeenCalled();
+  });
 });

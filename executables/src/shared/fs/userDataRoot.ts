@@ -5,7 +5,7 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { mkdir, access, constants as fsConstants } from 'node:fs/promises';
-import { PROFILE_ROOT_DIR } from '../constants.js';
+import { profileRootDir } from '../constants.js';
 import { ConfigurationError } from '../errors.js';
 
 /**
@@ -14,7 +14,7 @@ import { ConfigurationError } from '../errors.js';
  * @returns ~/.ih-dopen の絶対パス
  */
 export function getUserDataRoot(): string {
-  return join(homedir(), PROFILE_ROOT_DIR);
+  return join(homedir(), profileRootDir);
 }
 
 /**

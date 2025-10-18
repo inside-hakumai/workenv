@@ -3,8 +3,7 @@
  */
 
 import { createServer } from 'node:net';
-import type { PortValidationResult } from '../../domain/portAllocation.js';
-import { validatePortRange } from '../../domain/portAllocation.js';
+import { type PortValidationResult, validatePortRange } from '../../domain/portAllocation.js';
 
 /**
  * 指定されたポートが利用可能かを検証する

@@ -16,3 +16,14 @@ pre-commit:
       skip:
         - merge
         - rebase
+
+    - name: executables-lint
+      root: "executables/"
+      glob:
+        - "executables/src/*.{js,ts,tsx,jsx}"
+        - "executables/src/**/*.{js,ts,tsx,jsx}"
+      run: npx xo --fix {staged_files}
+      stage_fixed: true
+      skip:
+        - merge
+        - rebase

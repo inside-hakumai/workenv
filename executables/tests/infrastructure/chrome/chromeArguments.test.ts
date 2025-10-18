@@ -68,6 +68,6 @@ describe('buildChromeArguments', () => {
 
     // Then
     // URLが配列の最後の要素である
-    expect(result[result.length - 1]).toBe(url);
+    expect(result.at(-1)).toBe(url);
   });
 });

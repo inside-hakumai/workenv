@@ -8,15 +8,15 @@ type MockNetState = {
   reset(): void;
 };
 
-var createServerMock: ReturnType<typeof vi.fn>;
-var mockNetState: MockNetState;
+let createServerMock: ReturnType<typeof vi.fn>;
+let mockNetState: MockNetState;
 
 vi.mock('node:net', async () => {
-  const { EventEmitter } = await import('node:events');
+  const eventsModule = await import('node:events');
 
   mockNetState = {
-    defaultAllocatedPort: 45000,
-    nextPort: 45000,
+    defaultAllocatedPort: 45_000,
+    nextPort: 45_000,
     assignPort() {
       return this.nextPort++;
     },
@@ -25,7 +25,7 @@ vi.mock('node:net', async () => {
     },
   };
 
-  class MockServer extends EventEmitter {
+  class MockServer extends eventsModule.EventEmitter {
     #port: number;
 
     constructor() {
@@ -67,6 +67,7 @@ beforeEach(() => {
     throw new Error('net mock has not been initialized');
     // 実行時には必ずモックが初期化されている想定
   }
+
   mockNetState.reset();
   createServerMock.mockClear();
 });
@@ -84,7 +85,7 @@ describe('autoAllocatePort', () => {
     // Then
     // 有効な範囲のポートが割り当てられ、利用可能である
     expect(result.port).toBeGreaterThanOrEqual(1024);
-    expect(result.port).toBeLessThanOrEqual(65535);
+    expect(result.port).toBeLessThanOrEqual(65_535);
     expect(result.requestedByUser).toBe(false);
     expect(result.validationOutcome).toBe('available');
   });
@@ -92,7 +93,7 @@ describe('autoAllocatePort', () => {
   test('ユーザー指定ポートがある場合、そのポートの可用性をチェックする', async () => {
     // Given
     // ユーザーがポート番号を指定した状態（おそらく利用可能なポート）
-    const userPort = 19222; // 通常は使用されていないポート
+    const userPort = 19_222; // 通常は使用されていないポート
 
     // When
     // ポート検証を実行したとき

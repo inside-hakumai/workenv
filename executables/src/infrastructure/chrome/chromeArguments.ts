@@ -5,7 +5,7 @@
 /**
  * Chromeフラグ生成のパラメータ
  */
-export type ChromeArgumentsParams = {
+export type ChromeArgumentsParameters = {
   /** リモートデバッグポート */
   port: number;
   /** ユーザーデータディレクトリ */
@@ -17,13 +17,13 @@ export type ChromeArgumentsParams = {
 };
 
 /**
- * ChromeArgumentsParamsからChromeに渡すフラグ配列を生成する
+ * ChromeArgumentsParametersからChromeに渡すフラグ配列を生成する
  *
  * @param params - Chromeフラグ生成パラメータ
  * @returns Chromeフラグの配列
  */
-export function buildChromeArguments(params: ChromeArgumentsParams): string[] {
-  const { port, userDataDir, url, additionalArgs = [] } = params;
+export function buildChromeArguments(parameters: ChromeArgumentsParameters): string[] {
+  const { port, userDataDir, url, additionalArgs = [] } = parameters;
 
   return [
     `--remote-debugging-port=${port}`,

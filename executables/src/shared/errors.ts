@@ -5,21 +5,21 @@
 /**
  * エラー終了コード
  */
-export const EXIT_CODES = {
+export const exitCodes = {
   /** 成功 */
-  SUCCESS: 0,
+  success: 0,
   /** 一般的なエラー */
-  GENERAL_ERROR: 1,
+  generalError: 1,
   /** 設定エラー */
-  CONFIGURATION_ERROR: 2,
+  configurationError: 2,
   /** ポート競合エラー */
-  PORT_CONFLICT: 3,
+  portConflict: 3,
   /** プロファイルロックエラー */
-  PROFILE_LOCKED: 4,
+  profileLocked: 4,
   /** Chrome実行ファイル未検出 */
-  CHROME_NOT_FOUND: 5,
+  chromeNotFound: 5,
   /** Chrome起動失敗 */
-  CHROME_LAUNCH_FAILED: 6,
+  chromeLaunchFailed: 6,
 } as const;
 
 /**
@@ -28,7 +28,7 @@ export const EXIT_CODES = {
 export class CliError extends Error {
   constructor(
     message: string,
-    public readonly exitCode: number = EXIT_CODES.GENERAL_ERROR,
+    public readonly exitCode: number = exitCodes.generalError,
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -41,7 +41,7 @@ export class CliError extends Error {
  */
 export class ConfigurationError extends CliError {
   constructor(message: string) {
-    super(message, EXIT_CODES.CONFIGURATION_ERROR);
+    super(message, exitCodes.configurationError);
   }
 }
 
@@ -53,7 +53,7 @@ export class PortConflictError extends CliError {
     message: string,
     public readonly suggestedPorts?: number[],
   ) {
-    super(message, EXIT_CODES.PORT_CONFLICT);
+    super(message, exitCodes.portConflict);
   }
 }
 
@@ -62,7 +62,7 @@ export class PortConflictError extends CliError {
  */
 export class ProfileLockedError extends CliError {
   constructor(message: string) {
-    super(message, EXIT_CODES.PROFILE_LOCKED);
+    super(message, exitCodes.profileLocked);
   }
 }
 
@@ -71,7 +71,7 @@ export class ProfileLockedError extends CliError {
  */
 export class ChromeNotFoundError extends CliError {
   constructor(message: string) {
-    super(message, EXIT_CODES.CHROME_NOT_FOUND);
+    super(message, exitCodes.chromeNotFound);
   }
 }
 
@@ -80,6 +80,6 @@ export class ChromeNotFoundError extends CliError {
  */
 export class ChromeLaunchError extends CliError {
   constructor(message: string) {
-    super(message, EXIT_CODES.CHROME_LAUNCH_FAILED);
+    super(message, exitCodes.chromeLaunchFailed);
   }
 }

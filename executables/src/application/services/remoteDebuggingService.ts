@@ -35,7 +35,7 @@ export type ProfileDescriptor = {
   /** ロック状態 */
   locked: boolean;
   /** 最終起動日時 */
-  lastLaunchedAt: Date | null;
+  lastLaunchedAt: Date | undefined;
 };
 
 /**

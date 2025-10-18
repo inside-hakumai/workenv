@@ -2,7 +2,7 @@
  * ポート割り当てに関するドメイン型とバリデーション規約
  */
 
-import { PORT_RANGE } from '../shared/constants.js';
+import { portRange } from '../shared/constants.js';
 import { ConfigurationError } from '../shared/errors.js';
 
 /**
@@ -46,9 +46,7 @@ export function validatePortRange(port: number): void {
     throw new ConfigurationError(`ポート番号は整数である必要があります: ${port}`);
   }
 
-  if (port < PORT_RANGE.MIN || port > PORT_RANGE.MAX) {
-    throw new ConfigurationError(
-      `ポート番号は${PORT_RANGE.MIN}から${PORT_RANGE.MAX}の範囲である必要があります: ${port}`,
-    );
+  if (port < portRange.min || port > portRange.max) {
+    throw new ConfigurationError(`ポート番号は${portRange.min}から${portRange.max}の範囲である必要があります: ${port}`);
   }
 }

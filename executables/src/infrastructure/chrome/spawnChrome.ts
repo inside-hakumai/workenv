@@ -3,15 +3,14 @@
  */
 
 import { spawn } from 'node:child_process';
-import type { RemoteDebugSession } from '../../domain/remoteDebugSession.js';
-import { buildRemoteDebugSession } from '../../domain/remoteDebugSession.js';
+import { type RemoteDebugSession, buildRemoteDebugSession } from '../../domain/remoteDebugSession.js';
 import { ChromeLaunchError } from '../../shared/errors.js';
-import { CHROME_LAUNCH_TIMEOUT_MS } from '../../shared/constants.js';
+import { chromeLaunchTimeoutMs } from '../../shared/constants.js';
 
 /**
  * Chrome起動パラメータ
  */
-export type SpawnChromeParams = {
+export type SpawnChromeParameters = {
   /** Chrome実行ファイルの絶対パス */
   executablePath: string;
   /** Chromeに渡す引数 */
@@ -30,16 +29,16 @@ export type SpawnChromeParams = {
  * @param params - Chrome起動パラメータ
  * @returns リモートデバッグセッション
  */
-export async function spawnChrome(params: SpawnChromeParams): Promise<RemoteDebugSession> {
+export async function spawnChrome(parameters: SpawnChromeParameters): Promise<RemoteDebugSession> {
   const session = buildRemoteDebugSession({
-    profileName: params.profileName,
-    targetUrl: params.targetUrl,
-    port: params.port,
+    profileName: parameters.profileName,
+    targetUrl: parameters.targetUrl,
+    port: parameters.port,
     initialStatus: 'launching',
   });
 
   return new Promise((resolve, reject) => {
-    const chromeProcess = spawn(params.executablePath, params.args, {
+    const chromeProcess = spawn(parameters.executablePath, parameters.args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
     });
@@ -47,22 +46,25 @@ export async function spawnChrome(params: SpawnChromeParams): Promise<RemoteDebu
     let wsEndpoint: string | undefined;
     let timeoutId: NodeJS.Timeout | undefined;
     let settled = false;
+    let stderrBuffer = '';
+    const stderrDecoder = new TextDecoder();
 
     // イベントハンドラーへの参照を保持
-    const stderrDataHandler = (data: Buffer) => {
-      const output = data.toString();
-      const match = /DevTools listening on (ws:\/\/[^\s]+)/.exec(output);
+    const stderrDataHandler = (data: Uint8Array) => {
+      stderrBuffer += stderrDecoder.decode(data, { stream: true });
+      const match = /DevTools listening on (ws:\/\/\S+)/.exec(stderrBuffer);
 
-      if (match && match[1]) {
+      if (match?.[1]) {
         wsEndpoint = match[1];
 
-        const pid = chromeProcess.pid;
+        const { pid } = chromeProcess;
         if (pid === undefined) {
           cleanup();
           if (!settled) {
             settled = true;
             reject(new ChromeLaunchError('ChromeプロセスのPIDを取得できませんでした'));
           }
+
           return;
         }
 
@@ -87,7 +89,7 @@ export async function spawnChrome(params: SpawnChromeParams): Promise<RemoteDebu
       }
     };
 
-    const exitHandler = (code: number | null, signal: NodeJS.Signals | null) => {
+    const exitHandler = (code: number | undefined, signal: NodeJS.Signals | undefined) => {
       if (!wsEndpoint) {
         cleanup();
         if (!settled) {
@@ -104,7 +106,7 @@ export async function spawnChrome(params: SpawnChromeParams): Promise<RemoteDebu
         settled = true;
         reject(
           new ChromeLaunchError(
-            `Chrome起動がタイムアウトしました（${CHROME_LAUNCH_TIMEOUT_MS}ms）。DevToolsエンドポイントの出力を確認できませんでした。`,
+            `Chrome起動がタイムアウトしました（${chromeLaunchTimeoutMs}ms）。DevToolsエンドポイントの出力を確認できませんでした。`,
           ),
         );
       }
@@ -112,6 +114,9 @@ export async function spawnChrome(params: SpawnChromeParams): Promise<RemoteDebu
 
     // クリーンアップ関数：すべてのリスナーとタイムアウトを削除
     const cleanup = () => {
+      stderrBuffer = '';
+      stderrDecoder.decode();
+
       if (timeoutId) {
         clearTimeout(timeoutId);
         timeoutId = undefined;
@@ -123,7 +128,7 @@ export async function spawnChrome(params: SpawnChromeParams): Promise<RemoteDebu
     };
 
     // タイムアウト設定
-    timeoutId = setTimeout(timeoutHandler, CHROME_LAUNCH_TIMEOUT_MS);
+    timeoutId = setTimeout(timeoutHandler, chromeLaunchTimeoutMs);
 
     // イベントリスナー登録
     chromeProcess.stderr?.on('data', stderrDataHandler);
