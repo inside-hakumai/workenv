@@ -1,0 +1,38 @@
+{
+  "name": "workenv-executables",
+  "version": "0.0.1",
+  "license": "UNLICENSED",
+  "private": true,
+  "author": "inside-hakumai",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest run",
+    "lint": "xo --fix",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "ink": "^6.3.1",
+    "meow": "^14.0.0",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "chalk": "^5.6.2",
+    "eslint-config-xo-react": "^0.28.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "ink-testing-library": "^4.0.0",
+    "prettier": "^3.6.2",
+    "tsdown": "^0.15.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "xo": "^1.2.3"
+  }
+}
