@@ -34,6 +34,7 @@ export default defineConfig({
     dopen: './src/cli.tsx',
   },
   platform: 'node',
+  minify: true,
   alias: {
     'react-devtools-core': resolveFromConfig('./src/stubs/react-devtools-core.ts'),
   },
