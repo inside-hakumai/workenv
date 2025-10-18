@@ -1,5 +1,75 @@
-import { expect, test, describe } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { autoAllocatePort } from '../../../src/infrastructure/ports/autoAllocatePort.js';
+
+type MockNetState = {
+  defaultAllocatedPort: number;
+  nextPort: number;
+  assignPort(): number;
+  reset(): void;
+};
+
+var createServerMock: ReturnType<typeof vi.fn>;
+var mockNetState: MockNetState;
+
+vi.mock('node:net', async () => {
+  const { EventEmitter } = await import('node:events');
+
+  mockNetState = {
+    defaultAllocatedPort: 45000,
+    nextPort: 45000,
+    assignPort() {
+      return this.nextPort++;
+    },
+    reset() {
+      this.nextPort = this.defaultAllocatedPort;
+    },
+  };
+
+  class MockServer extends EventEmitter {
+    #port: number;
+
+    constructor() {
+      super();
+      this.#port = mockNetState.defaultAllocatedPort;
+    }
+
+    listen(port: number) {
+      this.#port = port === 0 ? mockNetState.assignPort() : port;
+      setTimeout(() => {
+        this.emit('listening');
+      }, 0);
+      return this;
+    }
+
+    close(callback?: () => void) {
+      callback?.();
+      return this;
+    }
+
+    address() {
+      return {
+        port: this.#port,
+        address: '127.0.0.1',
+        family: 'IPv4' as const,
+      };
+    }
+  }
+
+  createServerMock = vi.fn(() => new MockServer());
+
+  return {
+    createServer: createServerMock,
+  };
+});
+
+beforeEach(() => {
+  if (!mockNetState || !createServerMock) {
+    throw new Error('net mock has not been initialized');
+    // 実行時には必ずモックが初期化されている想定
+  }
+  mockNetState.reset();
+  createServerMock.mockClear();
+});
 
 describe('autoAllocatePort', () => {
   test('ユーザー指定ポートがない場合、自動的に空きポートを割り当てる', async () => {

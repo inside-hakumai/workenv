@@ -62,8 +62,10 @@ export function parseCliArgs(argv: readonly string[]): ParsedCliArgs {
   return {
     url: cli.flags.url,
     profile: cli.flags.profile,
-    port: cli.flags.port,
-    chromePath: cli.flags.chromePath,
-    additionalArgs: cli.flags.additionalArgs ? cli.flags.additionalArgs.split(',').map(arg => arg.trim()) : undefined,
+    ...(cli.flags.port !== undefined && { port: cli.flags.port }),
+    ...(cli.flags.chromePath !== undefined && { chromePath: cli.flags.chromePath }),
+    ...(cli.flags.additionalArgs !== undefined && {
+      additionalArgs: cli.flags.additionalArgs.split(',').map(arg => arg.trim()),
+    }),
   };
 }

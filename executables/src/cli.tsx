@@ -1,28 +1,8 @@
 #!/usr/bin/env node
 import { render } from 'ink';
-import meow from 'meow';
 import App from './app.js';
+import { parseCliArgs } from './cli/args.js';
 
-const cli = meow(
-  `
-	Usage
-	  $ setup-cli
+const args = parseCliArgs(process.argv.slice(2));
 
-	Options
-		--name  Your name
-
-	Examples
-	  $ setup-cli --name=Jane
-	  Hello, Jane
-`,
-  {
-    importMeta: import.meta,
-    flags: {
-      name: {
-        type: 'string',
-      },
-    },
-  },
-);
-
-render(<App name={cli.flags.name} />);
+render(<App args={args} />);

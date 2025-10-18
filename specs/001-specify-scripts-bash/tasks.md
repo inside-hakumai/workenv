@@ -43,13 +43,13 @@ description: "Task list template for feature implementation"
 **Independent Test**: URLとプロファイル名を指定した単体コマンド実行でブラウザ起動とリモートデバッグ接続が確認できる
 
 - [X] T012 [US1] executables/src/cli/args.ts を作成し meow で `--url`/`--profile`/`--port`/`--chrome-path`/`--additional-arg` を定義、バリデーションとヘルプを整備する
-- [ ] T013 [US1] executables/src/cli.tsx を更新して新しい引数解析を呼び出し、App へ検証済み入力とローディング状態を渡す
-- [ ] T014 [US1] executables/src/app.tsx を置き換え、Ink で進捗 (検出/起動/成功/失敗) と DevTools エンドポイント表示を実装する
+- [X] T013 [US1] executables/src/cli.tsx を更新して新しい引数解析を呼び出し、App へ検証済み入力とローディング状態を渡す
+- [X] T014 [US1] executables/src/app.tsx を置き換え、Ink で進捗 (検出/起動/成功/失敗) と DevTools エンドポイント表示を実装する
 - [X] T015 [P] [US1] executables/src/infrastructure/chrome/chromeArguments.ts を追加し ChromeLaunchOptions からフラグ配列を生成する
-- [ ] T016 [US1] executables/src/infrastructure/chrome/spawnChrome.ts で `child_process.spawn` により Chrome を起動し、`DevTools listening on` を待って RemoteDebugSession を返す
+- [X] T016 [US1] executables/src/infrastructure/chrome/spawnChrome.ts で `child_process.spawn` により Chrome を起動し、`DevTools listening on` を待って RemoteDebugSession を返す
 - [X] T017 [P] [US1] executables/src/infrastructure/ports/autoAllocatePort.ts にユーザー指定ポート検証と未指定時の自動割り当て処理を実装する
-- [ ] T018 [US1] executables/src/application/services/remoteDebuggingService.ts に `createSession` を実装し、Chromeパス検出→ポート確保→Chrome起動→レスポンス整形を連結する
-- [ ] T019 [US1] executables/src/usecase/createRemoteDebugSession.ts を作成し CLI入力をサービスへ渡し、`CreateSessionResponse` 相当の結果を UI に返す
+- [X] T018 [US1] executables/src/application/services/remoteDebuggingService.ts に `createSession` を実装し、Chromeパス検出→ポート確保→Chrome起動→レスポンス整形を連結する
+- [X] T019 [US1] executables/src/usecase/createRemoteDebugSession.ts を作成し CLI入力をサービスへ渡し、`CreateSessionResponse` 相当の結果を UI に返す
 
 **Checkpoint**: `chrome-remote-debug` 実行でブラウザ起動と DevTools エンドポイント表示が完了する
 

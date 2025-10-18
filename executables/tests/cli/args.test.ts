@@ -20,14 +20,7 @@ describe('parseCliArgs', () => {
   test('ポート番号が指定された場合、オプション引数も含めてパース結果を返す', () => {
     // Given
     // 必須引数とオプションのポート番号が渡された状態
-    const argv = [
-      '--url',
-      'https://staging.example.com',
-      '--profile',
-      'qa-test',
-      '--port',
-      '9223',
-    ];
+    const argv = ['--url', 'https://staging.example.com', '--profile', 'qa-test', '--port', '9223'];
 
     // When
     // 引数をパースしたとき
