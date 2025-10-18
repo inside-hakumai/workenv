@@ -8,33 +8,34 @@ type MockNetState = {
   reset(): void;
 };
 
-let createServerMock: ReturnType<typeof vi.fn>;
-let mockNetState: MockNetState;
-
-vi.mock('node:net', async () => {
-  const eventsModule = await import('node:events');
-
-  mockNetState = {
+const netMock = vi.hoisted(() => {
+  const state: MockNetState = {
     defaultAllocatedPort: 45_000,
     nextPort: 45_000,
     assignPort() {
-      return this.nextPort++;
+      const { nextPort } = state;
+      state.nextPort += 1;
+      return nextPort;
     },
     reset() {
-      this.nextPort = this.defaultAllocatedPort;
+      state.nextPort = state.defaultAllocatedPort;
     },
   };
 
-  class MockServer extends eventsModule.EventEmitter {
-    #port: number;
+  return {
+    createServerMock: vi.fn(),
+    state,
+  };
+});
 
-    constructor() {
-      super();
-      this.#port = mockNetState.defaultAllocatedPort;
-    }
+vi.mock('node:net', async () => {
+  const { EventEmitter: nodeEventEmitter } = await import('node:events');
+
+  class MockServer extends nodeEventEmitter {
+    #port = netMock.state.defaultAllocatedPort;
 
     listen(port: number) {
-      this.#port = port === 0 ? mockNetState.assignPort() : port;
+      this.#port = port === 0 ? netMock.state.assignPort() : port;
       setTimeout(() => {
         this.emit('listening');
       }, 0);
@@ -55,19 +56,17 @@ vi.mock('node:net', async () => {
     }
   }
 
-  createServerMock = vi.fn(() => new MockServer());
+  netMock.createServerMock.mockImplementation(() => new MockServer());
 
   return {
-    createServer: createServerMock,
+    createServer: netMock.createServerMock,
   };
 });
 
-beforeEach(() => {
-  if (!mockNetState || !createServerMock) {
-    throw new Error('net mock has not been initialized');
-    // 実行時には必ずモックが初期化されている想定
-  }
+const mockNetState = netMock.state;
+const { createServerMock } = netMock;
 
+beforeEach(() => {
   mockNetState.reset();
   createServerMock.mockClear();
 });

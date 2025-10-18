@@ -1,5 +1,5 @@
 import { Box, Text } from 'ink';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ParsedCliArgs } from './cli/args.js';
 import type { CreateSessionResponse } from './application/services/remoteDebuggingService.js';
 import { createRemoteDebugSession } from './usecase/createRemoteDebugSession.js';
@@ -16,12 +16,24 @@ type AppState =
 export default function App({ args }: Props) {
   const [state, setState] = useState<AppState>({ status: 'loading' });
 
+  const { url, profile, port, chromePath, additionalArgs } = args;
+
+  const normalizedArgs = useMemo<ParsedCliArgs>(() => {
+    return {
+      url,
+      profile,
+      ...(port !== undefined && { port }),
+      ...(chromePath !== undefined && { chromePath }),
+      ...(additionalArgs !== undefined && { additionalArgs }),
+    };
+  }, [url, profile, port, chromePath, additionalArgs]);
+
   useEffect(() => {
     let mounted = true;
 
     const run = async () => {
       try {
-        const response = await createRemoteDebugSession(args);
+        const response = await createRemoteDebugSession(normalizedArgs);
         if (mounted) {
           setState({ status: 'success', response });
         }
@@ -38,7 +50,7 @@ export default function App({ args }: Props) {
     return () => {
       mounted = false;
     };
-  }, [args]);
+  }, [normalizedArgs]);
 
   if (state.status === 'loading') {
     return (
