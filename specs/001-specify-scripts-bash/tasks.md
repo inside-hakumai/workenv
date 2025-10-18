@@ -24,14 +24,14 @@ description: "Task list template for feature implementation"
 **Purpose**: すべてのストーリーが依存するドメイン・検証・基盤処理を準備  
 **⚠️ CRITICAL**: このフェーズが完了するまでユーザーストーリーの実装は開始不可
 
-- [ ] T004 [Foundation] executables/src/domain/browserProfile.ts に BrowserProfile 型と `validateBrowserProfileName`/`resolveProfilePaths` を実装する
-- [ ] T005 [P] [Foundation] executables/src/domain/remoteDebugSession.ts に RemoteDebugSession と状態列挙、`buildRemoteDebugSession` ヘルパーを実装する
-- [ ] T006 [P] [Foundation] executables/src/domain/portAllocation.ts に PortValidationResult/PortSuggestion 型とバリデーション規約を定義する
-- [ ] T007 [P] [Foundation] executables/src/domain/chromeLaunchOptions.ts に ChromeLaunchOptions と安全なフラグホワイトリスト生成処理を追加する
-- [ ] T008 [Foundation] executables/src/infrastructure/chrome/detectChromeExecutable.ts で CHROME_PATH > 既定パス探索 > which の順に Chrome 実行ファイルを解決する
-- [ ] T009 [P] [Foundation] executables/src/infrastructure/ports/checkPortAvailability.ts に `net.createServer` を用いた事前ポート検査を実装する
-- [ ] T010 [Foundation] executables/src/shared/fs/userDataRoot.ts で `~/.ih-dopen` ルート作成と権限チェック、プロフィール配下パス解決を提供する
-- [ ] T011 [P] [Foundation] executables/src/shared/logger.ts に Ink 互換のステータスログ/エラーログフォーマッタを用意する
+- [X] T004 [Foundation] executables/src/domain/browserProfile.ts に BrowserProfile 型と `validateBrowserProfileName`/`resolveProfilePaths` を実装する
+- [X] T005 [P] [Foundation] executables/src/domain/remoteDebugSession.ts に RemoteDebugSession と状態列挙、`buildRemoteDebugSession` ヘルパーを実装する
+- [X] T006 [P] [Foundation] executables/src/domain/portAllocation.ts に PortValidationResult/PortSuggestion 型とバリデーション規約を定義する
+- [X] T007 [P] [Foundation] executables/src/domain/chromeLaunchOptions.ts に ChromeLaunchOptions と安全なフラグホワイトリスト生成処理を追加する
+- [X] T008 [Foundation] executables/src/infrastructure/chrome/detectChromeExecutable.ts で CHROME_PATH > 既定パス探索 > which の順に Chrome 実行ファイルを解決する
+- [X] T009 [P] [Foundation] executables/src/infrastructure/ports/checkPortAvailability.ts に `net.createServer` を用いた事前ポート検査を実装する
+- [X] T010 [Foundation] executables/src/shared/fs/userDataRoot.ts で `~/.ih-dopen` ルート作成と権限チェック、プロフィール配下パス解決を提供する
+- [X] T011 [P] [Foundation] executables/src/shared/logger.ts に Ink 互換のステータスログ/エラーログフォーマッタを用意する
 
 **Checkpoint**: ドメイン・基盤処理が揃い、ユーザーストーリー実装を開始できる
 
