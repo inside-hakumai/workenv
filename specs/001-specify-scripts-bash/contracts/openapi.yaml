@@ -1,0 +1,227 @@
+openapi: 3.1.0
+info:
+  title: Chrome Remote Debugging Launcher API
+  version: 0.1.0
+  description: |
+    Chromeリモートデバッグ起動ユーティリティが内部的に提供する契約仕様。
+    CLI実装はこの契約を満たすサービスレイヤーを呼び出す想定で設計する。
+servers:
+  - url: http://localhost:4687
+    description: 開発用擬似エンドポイント（実際のCLIはローカルプロセスを直接操作する）
+paths:
+  /remote-debugging/sessions:
+    post:
+      summary: remote-debuggingセッションを作成してChromeを起動する
+      tags: [RemoteDebuggingSessions]
+      requestBody:
+        description: 起動対象URLとプロファイル情報
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Chrome起動に成功し、接続可能なエンドポイントを返却
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSessionResponse'
+        '400':
+          description: 入力バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: プロファイル重複またはポート競合
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      suggestedPorts:
+                        type: array
+                        items:
+                          type: integer
+                          minimum: 1024
+                          maximum: 65535
+        '500':
+          description: Chrome起動失敗または内部エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /remote-debugging/sessions/{sessionId}:
+    delete:
+      summary: 既存remote-debuggingセッションの終了を要求する
+      tags: [RemoteDebuggingSessions]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          description: `CreateSessionResponse.sessionId`
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: セッション終了通知を受理した
+        '404':
+          description: 指定されたセッションが存在しない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /remote-debugging/profiles/{profileName}:
+    get:
+      summary: プロファイルの状態とユーザーデータディレクトリを取得する
+      tags: [BrowserProfiles]
+      parameters:
+        - name: profileName
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z0-9-_]{1,64}$'
+      responses:
+        '200':
+          description: プロファイル情報を返却
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileStatusResponse'
+        '404':
+          description: プロファイルが存在しない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateSessionRequest:
+      type: object
+      required:
+        - url
+        - profileName
+      properties:
+        url:
+          type: string
+          description: 起動対象URL（http/httpsのみ）
+          format: uri
+        profileName:
+          type: string
+          description: プロファイル識別子（小文字英数字 + -_）
+          pattern: '^[a-z0-9-_]{1,64}$'
+        port:
+          type: integer
+          minimum: 1024
+          maximum: 65535
+          description: 希望リモートデバッグポート。未指定時は自動割り当て
+        chromePath:
+          type: string
+          description: Chrome実行ファイルの絶対パス明示（環境変数より優先）
+        additionalArgs:
+          type: array
+          items:
+            type: string
+          description: Chromeへ付与する追加引数（危険フラグはCLI側で事前フィルタリング）
+    CreateSessionResponse:
+      type: object
+      required:
+        - sessionId
+        - port
+        - wsEndpoint
+        - profile
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        port:
+          type: integer
+          minimum: 1024
+          maximum: 65535
+        wsEndpoint:
+          type: string
+          format: uri
+          description: Chrome DevTools Protocolに接続するWebSocketエンドポイント
+        profile:
+          $ref: '#/components/schemas/ProfileDescriptor'
+        launchDurationMs:
+          type: integer
+          description: launch開始からreadyまでに要した時間
+        chromeProcessPid:
+          type: integer
+          description: 起動したChromeプロセスのPID
+    ProfileDescriptor:
+      type: object
+      required:
+        - profileName
+        - dataDirectory
+        - locked
+      properties:
+        profileName:
+          type: string
+        dataDirectory:
+          type: string
+          description: Chromeに渡されたユーザーデータディレクトリ絶対パス（常に `~/.ih-dopen/<profileName>`）
+        locked:
+          type: boolean
+          description: 現在セッションが占有しているかどうか
+        lastLaunchedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ProfileStatusResponse:
+      type: object
+      required:
+        - profile
+        - activeSession
+      properties:
+        profile:
+          $ref: '#/components/schemas/ProfileDescriptor'
+        activeSession:
+          oneOf:
+            - $ref: '#/components/schemas/SessionSummary'
+            - type: 'null'
+              description: 稼働中セッションなし
+    SessionSummary:
+      type: object
+      required:
+        - sessionId
+        - status
+        - port
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [launching, ready, failed, stopped]
+        port:
+          type: integer
+          minimum: 1024
+          maximum: 65535
+        wsEndpoint:
+          type: string
+          format: uri
+          nullable: true
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: アプリケーション固有エラーコード
+        message:
+          type: string
+          description: 利用者向けエラーメッセージ
+        details:
+          type: object
+          additionalProperties: true
+          description: 追加デバッグ情報
