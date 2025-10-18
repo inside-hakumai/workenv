@@ -15,6 +15,7 @@
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsdown",
+    "distribute": "cp dist/dopen ../dist/bin/dopen",
     "dev": "tsdown --watch",
     "test": "vitest run",
     "lint": "xo --fix",

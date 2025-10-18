@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Source entrypoint: executables/src/cli.tsx
+
 import { argv } from 'node:process';
 import { render } from 'ink';
 import App from './app.js';

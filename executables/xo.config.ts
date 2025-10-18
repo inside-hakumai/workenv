@@ -1,11 +1,11 @@
 import type { FlatXoConfig } from 'xo';
 
 const config: FlatXoConfig = [
+  { ignores: ['tsdown.config.ts'] },
   {
     prettier: true,
     react: true,
     space: 2,
-    ignores: ['tsdown.config.ts'],
     rules: {
       'react/react-in-jsx-scope': 'off',
       'unicorn/filename-case': [
