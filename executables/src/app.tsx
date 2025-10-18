@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ParsedCliArgs } from './cli/args.js';
 import type { CreateSessionResponse } from './application/services/remoteDebuggingService.js';
 import { createRemoteDebugSession } from './usecase/createRemoteDebugSession.js';
+import ProfileSummary from './ui/components/ProfileSummary.js';
+import { ConfigurationError } from './shared/errors.js';
 
 type Props = {
   readonly args: ParsedCliArgs;
@@ -61,9 +63,18 @@ export default function App({ args }: Props) {
   }
 
   if (state.status === 'error') {
+    const isConfigurationError = state.error instanceof ConfigurationError;
+
     return (
       <Box flexDirection="column">
-        <Text color="red">エラー: {state.error.message}</Text>
+        {isConfigurationError ? (
+          <>
+            <Text color="red">ディレクトリアクセスに失敗しました。権限とディスク空き容量を確認してください。</Text>
+            <Text color="red">詳細: {state.error.message}</Text>
+          </>
+        ) : (
+          <Text color="red">エラー: {state.error.message}</Text>
+        )}
       </Box>
     );
   }
@@ -73,7 +84,7 @@ export default function App({ args }: Props) {
   return (
     <Box flexDirection="column">
       <Text color="green">✓ Chrome起動成功</Text>
-      <Text>プロファイル: {response.profile.profileName}</Text>
+      <ProfileSummary profile={response.profile} />
       <Text>ポート: {response.port}</Text>
       <Text>DevTools: {response.wsEndpoint}</Text>
       {response.chromeProcessPid ? <Text>プロセスID: {response.chromeProcessPid}</Text> : null}

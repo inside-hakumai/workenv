@@ -5,6 +5,7 @@ import App from '../src/app.js';
 import type { ParsedCliArgs } from '../src/cli/args.js';
 import type { CreateSessionResponse } from '../src/application/services/remoteDebuggingService.js';
 import * as createRemoteDebugSessionModule from '../src/usecase/createRemoteDebugSession.js';
+import { ConfigurationError } from '../src/shared/errors.js';
 import {
   cleanupChromeTestArtifacts,
   createTemporaryUserDataDir,
@@ -128,5 +129,67 @@ describe('App', () => {
     // Then
     // useEffectが再実行されないことを期待
     expect(createRemoteDebugSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('セッション作成が成功した場合、プロファイルサマリーを表示する', async () => {
+    // Given
+    // プロファイル情報を含む成功レスポンスを返すモックが設定された状態
+    const args: ParsedCliArgs = {
+      url: 'https://example.com',
+      profile: 'reuse-profile',
+    };
+
+    const userDataDir = createTemporaryUserDataDir(args.profile);
+    const lastLaunchedAt = new Date('2024-07-01T12:00:00Z');
+    vi.spyOn(createRemoteDebugSessionModule, 'createRemoteDebugSession').mockResolvedValue({
+      sessionId: 'session-success-1',
+      port: 9333,
+      wsEndpoint: 'ws://127.0.0.1:9333/devtools/browser/mock',
+      profile: {
+        profileName: args.profile,
+        dataDirectory: userDataDir,
+        locked: false,
+        lastLaunchedAt,
+      },
+    });
+
+    // When
+    // アプリをレンダリングして非同期処理が完了するのを待ったとき
+    const { lastFrame } = render(<App args={args} />);
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 20);
+    });
+
+    // Then
+    // プロファイルディレクトリと復元メッセージが表示される
+    const output = lastFrame() ?? '';
+    expect(output).toContain(userDataDir);
+    expect(output).toContain('状態復元: 前回起動 2024-07-01T12:00:00.000Z のデータを再利用します');
+  });
+
+  test('プロファイルディレクトリアクセスに失敗した場合、案内メッセージを表示する', async () => {
+    // Given
+    // ConfigurationError を返すモックが設定された状態
+    const args: ParsedCliArgs = {
+      url: 'https://example.com',
+      profile: 'error-profile',
+    };
+
+    vi.spyOn(createRemoteDebugSessionModule, 'createRemoteDebugSession').mockRejectedValue(
+      new ConfigurationError('ユーザーデータディレクトリに書き込み権限がありません'),
+    );
+
+    // When
+    // アプリをレンダリングしてエラーハンドリングが行われたとき
+    const { lastFrame } = render(<App args={args} />);
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, 20);
+    });
+
+    // Then
+    // ディレクトリアクセスに関する案内が表示される
+    const output = lastFrame() ?? '';
+    expect(output).toContain('ディレクトリアクセスに失敗しました');
+    expect(output).toContain('ユーザーデータディレクトリに書き込み権限がありません');
   });
 });

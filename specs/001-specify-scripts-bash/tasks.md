@@ -60,12 +60,12 @@ description: "Task list template for feature implementation"
 **Goal**: 同じプロファイル名で再実行した際に前回のログイン状態やクッキーを引き継げる  
 **Independent Test**: 初回実行で状態を保存し Chrome を閉じた後、同じプロファイルで再実行して状態が維持される
 
-- [ ] T020 [US2] executables/src/infrastructure/storage/profileDirectory.ts を追加し プロファイルディレクトリ作成、権限チェック、`session.lock` 排他判定を実装する
-- [ ] T021 [US2] executables/src/application/services/profileService.ts に プロファイル読込/作成、最終起動時刻の更新、ロック検出時のエラー返却を実装する
-- [ ] T022 [P] [US2] executables/src/ui/components/ProfileSummary.tsx を作成し プロファイルディレクトリと状態復元可否を表示する Ink コンポーネントを用意する
-- [ ] T023 [US2] executables/src/usecase/createRemoteDebugSession.ts を拡張し プロファイルサービスを呼び出してロック確認・最終起動更新・レスポンスへのプロファイル情報付与を行う
-- [ ] T024 [US2] executables/src/application/contracts/getProfileStatus.ts に `/remote-debugging/profiles/{profileName}` を満たすプロファイル状態取得ロジックを実装する
-- [ ] T025 [US2] executables/src/app.tsx を更新し プロファイル再利用メッセージとディレクトリアクセス失敗時の案内を表示する
+- [X] T020 [US2] executables/src/infrastructure/storage/profileDirectory.ts を追加し プロファイルディレクトリ作成、権限チェック、`session.lock` 排他判定を実装する
+- [X] T021 [US2] executables/src/application/services/profileService.ts に プロファイル読込/作成、最終起動時刻の更新、ロック検出時のエラー返却を実装する
+- [X] T022 [P] [US2] executables/src/ui/components/ProfileSummary.tsx を作成し プロファイルディレクトリと状態復元可否を表示する Ink コンポーネントを用意する
+- [X] T023 [US2] executables/src/usecase/createRemoteDebugSession.ts を拡張し プロファイルサービスを呼び出してロック確認・最終起動更新・レスポンスへのプロファイル情報付与を行う
+- [X] T024 [US2] executables/src/application/contracts/getProfileStatus.ts に `/remote-debugging/profiles/{profileName}` を満たすプロファイル状態取得ロジックを実装する
+- [X] T025 [US2] executables/src/app.tsx を更新し プロファイル再利用メッセージとディレクトリアクセス失敗時の案内を表示する
 
 **Checkpoint**: プロファイル単位の状態復元が動作し、再起動後もセッションが持続する
 
@@ -136,4 +136,3 @@ description: "Task list template for feature implementation"
 1. 共通基盤 (Phase 1〜2) を全員で完了
 2. US1 実装チームは T012〜T019 へ、別メンバーは並行で US2 の UI/契約 (T022/T024) の下準備を進める
 3. US3 フェーズでセッション管理 (T026/T028/T031) とポート提案/ドキュメント (T027/T032/T033) を分担し、最終統合前に合同レビューを実施
-
