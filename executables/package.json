@@ -1,0 +1,45 @@
+{
+  "name": "workenv-executables",
+  "version": "0.0.1",
+  "description": "CLI tool to launch Google Chrome with remote debugging enabled for automation and testing",
+  "bin": {
+    "chrome-remote-debug": "dist/dopen"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "author": "inside-hakumai",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsdown",
+    "distribute": "cp dist/dopen ../dist/bin/dopen",
+    "dev": "tsx watch ./src/cli.tsx",
+    "test": "vitest run",
+    "lint": "xo --fix",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "ink": "^6.3.1",
+    "meow": "^14.0.0",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "chalk": "^5.6.2",
+    "eslint-config-xo-react": "^0.28.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "ink-testing-library": "^4.0.0",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "tsdown": "^0.15.6",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
+    "xo": "^1.2.3"
+  }
+}
