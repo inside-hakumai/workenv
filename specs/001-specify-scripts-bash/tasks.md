@@ -13,7 +13,7 @@ description: "Task list template for feature implementation"
 
 **Purpose**: CLI公開と共通定数・エラー基盤の整備
 
-- [ ] T001 [Setup] executables/package.json に `chrome-remote-debug` バイナリ公開設定と説明文を追加し、コマンドの目的をリモートデバッグ仕様に揃える
+- [X] T001 [Setup] executables/package.json に `chrome-remote-debug` バイナリ公開設定と説明文を追加し、コマンドの目的をリモートデバッグ仕様に揃える
 - [ ] T002 [P] [Setup] executables/src/shared/constants.ts を新規作成し CLI名、プロフィールルート (`~/.ih-dopen`)、デフォルトポート範囲など共有定数を定義する
 - [ ] T003 [P] [Setup] executables/src/shared/errors.ts に CLI 用の基底エラー型と ConfigurationError/PortConflictError などの派生を用意し、終了コードを紐付ける
 

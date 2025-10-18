@@ -1,6 +1,10 @@
 {
   "name": "workenv-executables",
   "version": "0.0.1",
+  "description": "CLI tool to launch Google Chrome with remote debugging enabled for automation and testing",
+  "bin": {
+    "chrome-remote-debug": "dist/cli.js"
+  },
   "license": "UNLICENSED",
   "private": true,
   "author": "inside-hakumai",
