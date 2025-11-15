@@ -17,7 +17,7 @@
     "build": "tsdown",
     "distribute": "cp dist/dopen ../dist/bin/dopen",
     "dev": "tsx watch ./src/cli.tsx",
-    "test": "vitest run",
+    "test": "vitest run --typecheck",
     "lint": "xo --fix",
     "format": "prettier --write ."
   },
