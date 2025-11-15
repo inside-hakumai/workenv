@@ -43,7 +43,7 @@ describe('getProfileStatus', () => {
     expect(response.profile.dataDirectory).toBe(dataDirectory);
     expect(response.profile.locked).toBe(false);
     expect(response.profile.lastLaunchedAt).toBe(lastLaunchedAt.toISOString());
-    expect(response.activeSession).toBeNull();
+    expect(response.activeSession).toBeUndefined();
   });
 
   test('ロック状態がtrueの場合もロック情報をそのまま返す', async () => {
@@ -77,6 +77,6 @@ describe('getProfileStatus', () => {
     // Then
     // ロック状態が反映されたレスポンスが返る
     expect(response.profile.locked).toBe(true);
-    expect(response.profile.lastLaunchedAt).toBeNull();
+    expect(response.profile.lastLaunchedAt).toBeUndefined();
   });
 });

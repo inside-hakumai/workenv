@@ -56,9 +56,9 @@ describe('prepareProfile', () => {
     expect(result.lastLaunchedAt).toBeUndefined();
 
     const metadata = JSON.parse(await fsPromises.readFile(join(dataDirectory, 'profile.json'), 'utf8')) as {
-      lastLaunchedAt: string | undefined;
+      lastLaunchedAt?: string;
     };
-    expect(metadata.lastLaunchedAt).toBeNull();
+    expect(metadata.lastLaunchedAt).toBeUndefined();
   });
 
   test('ロックが検出された場合、ProfileLockedErrorを送出する', async () => {
@@ -144,7 +144,6 @@ describe('updateLastLaunchedAt', () => {
       JSON.stringify({
         profileName,
         createdAt: new Date('2024-05-01T00:00:00Z').toISOString(),
-        lastLaunchedAt: null,
       }),
     );
 
@@ -166,7 +165,7 @@ describe('updateLastLaunchedAt', () => {
     // メタデータに最終起動日時が保存され、返却値にも反映される
     expect(result.lastLaunchedAt?.toISOString()).toBe(launchedAt.toISOString());
     const savedMetadata = JSON.parse(await fsPromises.readFile(join(dataDirectory, 'profile.json'), 'utf8')) as {
-      lastLaunchedAt: string | undefined;
+      lastLaunchedAt?: string;
     };
     expect(savedMetadata.lastLaunchedAt).toBe(launchedAt.toISOString());
   });

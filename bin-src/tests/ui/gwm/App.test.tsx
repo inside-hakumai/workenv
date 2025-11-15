@@ -1,3 +1,4 @@
+import process from 'node:process';
 import React from 'react';
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
@@ -7,23 +8,26 @@ import * as createWorktreeModule from '../../../src/usecase/createWorktree.js';
 
 void React;
 
-const flushAsync = () =>
+const flushAsync = async () =>
   new Promise<void>(resolve => {
     setTimeout(resolve, 0);
   });
 
-const stripAnsi = (value: string) => value.replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '');
+const ansiEscapeSource = String.raw`\u001B\[[0-?]*[ -/]*[@-~]`;
+const ansiEscapePattern = new RegExp(ansiEscapeSource, 'g');
+const stripAnsi = (value: string): string => value.replaceAll(ansiEscapePattern, '');
+const normalizeFrameOutput = (frame: unknown): string => (typeof frame === 'string' ? frame : '');
 
 const createDeferred = <T,>() => {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  let reject!: (reason?: unknown) => void;
+  let resolveDeferred!: (value: T | PromiseLike<T>) => void;
+  let rejectDeferred!: (reason?: unknown) => void;
 
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
+  const promise = new Promise<T>((resolve, reject) => {
+    resolveDeferred = resolve;
+    rejectDeferred = reject;
   });
 
-  return { promise, resolve, reject };
+  return { promise, resolve: resolveDeferred, reject: rejectDeferred };
 };
 
 describe('GwmApp', () => {
@@ -45,7 +49,7 @@ describe('GwmApp', () => {
     // Then
     // サービス呼び出しが始まり、進捗メッセージが表示される
     expect(createWorktreeMock).toHaveBeenCalledWith({ branch });
-    const output = stripAnsi(lastFrame() ?? '');
+    const output = stripAnsi(normalizeFrameOutput(lastFrame()));
     expect(output).toContain('worktree作成中...');
     expect(output).toContain(branch);
 
@@ -76,7 +80,7 @@ describe('GwmApp', () => {
     await flushAsync();
 
     // Then
-    const output = stripAnsi(lastFrame() ?? '');
+    const output = stripAnsi(normalizeFrameOutput(lastFrame()));
     expect(output).toContain(`PATH=${result.targetPath}`);
     expect(output).toContain(`BRANCH=${result.branchName}`);
     expect(output).toContain(`HEAD=${result.headCommit}`);
@@ -95,7 +99,7 @@ describe('GwmApp', () => {
     await flushAsync();
 
     // Then
-    const output = stripAnsi(lastFrame() ?? '');
+    const output = stripAnsi(normalizeFrameOutput(lastFrame()));
     expect(output).toContain('エラー');
     expect(output).toContain(failure.message);
     expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining(failure.message));

@@ -50,20 +50,28 @@ describe('handleCliFailure', () => {
 describe('registerTerminationHandlers', () => {
   test('SIGINTとSIGTERMを監視し、発火時にハンドラーへシグナル名を渡す', () => {
     // Given
-    const registrar = vi.fn<(signal: NodeJS.Signals, handler: () => void) => void>();
-    const onTerminate = vi.fn<(signal: NodeJS.Signals) => void>();
+    const registrarMock = vi.fn<(signal: NodeJS.Signals, handler: () => void) => void>();
+    const onTerminateMock = vi.fn<(signal: NodeJS.Signals) => void>();
+    const registrar = (signal: NodeJS.Signals, handler: () => void) => {
+      registrarMock(signal, handler);
+    };
+
+    const onTerminate = (signal: NodeJS.Signals) => {
+      onTerminateMock(signal);
+    };
+
     // When
     registerTerminationHandlers(registrar, onTerminate);
     // Then
-    expect(registrar).toHaveBeenCalledWith('SIGINT', expect.any(Function));
-    expect(registrar).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
+    expect(registrarMock).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+    expect(registrarMock).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
     // And when registered handlers fire, onTerminate receives the signal
-    const calls = registrar.mock.calls as [[NodeJS.Signals, () => void], [NodeJS.Signals, () => void]];
+    const calls = registrarMock.mock.calls as [[NodeJS.Signals, () => void], [NodeJS.Signals, () => void]];
     const [[intSignal, intHandler], [termSignal, termHandler]] = calls;
     intHandler();
     termHandler();
-    expect(onTerminate).toHaveBeenCalledWith(intSignal);
-    expect(onTerminate).toHaveBeenCalledWith(termSignal);
+    expect(onTerminateMock).toHaveBeenCalledWith(intSignal);
+    expect(onTerminateMock).toHaveBeenCalledWith(termSignal);
   });
 });
 

@@ -12,7 +12,7 @@ const metadataFileName = 'profile.json';
 type ProfileMetadata = {
   profileName: string;
   createdAt: string;
-  lastLaunchedAt: string | null;
+  lastLaunchedAt?: string;
 };
 
 /**
@@ -108,11 +108,13 @@ async function loadOrCreateMetadata(path: string, profileName: string): Promise<
     const content = await readFile(path, 'utf8');
     const parsed = JSON.parse(content) as Partial<ProfileMetadata>;
 
-    if (typeof parsed.createdAt === 'string' && 'lastLaunchedAt' in parsed) {
+    if (typeof parsed.createdAt === 'string') {
+      const lastLaunchedAt = typeof parsed.lastLaunchedAt === 'string' ? parsed.lastLaunchedAt : undefined;
+
       return {
         profileName: parsed.profileName ?? profileName,
         createdAt: parsed.createdAt,
-        lastLaunchedAt: parsed.lastLaunchedAt ?? null,
+        ...(lastLaunchedAt === undefined ? {} : { lastLaunchedAt }),
       };
     }
   } catch (error) {
@@ -126,7 +128,6 @@ async function loadOrCreateMetadata(path: string, profileName: string): Promise<
   const metadata: ProfileMetadata = {
     profileName,
     createdAt: now,
-    lastLaunchedAt: null,
   };
 
   await writeMetadata(path, metadata);
