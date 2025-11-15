@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Source entrypoint: executables/src/cli.tsx
+// Source entrypoint: bin-src/src/cli.tsx
 
 import { argv } from 'node:process';
 import { render } from 'ink';
