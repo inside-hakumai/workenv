@@ -7,7 +7,12 @@ import meow from 'meow';
 import { createElement } from 'react';
 import GwmApp from '../ui/gwm/App.js';
 import { parseBranchInput } from './gwm/args.js';
-import { handleCliFailure, registerTerminationHandlers, type FailureReporter } from './gwm/runtime.js';
+import {
+  deriveSignalExitCode,
+  handleCliFailure,
+  registerTerminationHandlers,
+  type FailureReporter,
+} from './gwm/runtime.js';
 import { exitCodes } from '../shared/errors.js';
 
 const cli = meow(
@@ -49,9 +54,9 @@ const main = async () => {
 
     registerTerminationHandlers(
       (signal, handler) => process.once(signal, handler),
-      () => {
+      signal => {
         inkInstance.unmount();
-        exit(exitCodes.generalError);
+        exit(deriveSignalExitCode(signal));
       },
     );
 

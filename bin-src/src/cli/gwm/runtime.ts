@@ -37,6 +37,26 @@ export function handleCliFailure(error: unknown, reporter: FailureReporter): voi
 
 const terminationSignals: readonly NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
 
+const signalNumbers: Partial<Record<NodeJS.Signals, number>> = {
+  SIGINT: 2,
+  SIGTERM: 15,
+};
+
+/**
+ * シグナルに対応するPOSIX終了コードを求める
+ *
+ * @param signal - 捕捉したシグナル
+ * @returns 128 + シグナル番号。未知のシグナルは一般エラー扱い
+ */
+export function deriveSignalExitCode(signal: NodeJS.Signals): number {
+  const number = signalNumbers[signal];
+  if (number === undefined) {
+    return exitCodes.generalError;
+  }
+
+  return 128 + number;
+}
+
 /**
  * シグナル発火時に共通処理を実行するためのハンドラー登録関数
  *
