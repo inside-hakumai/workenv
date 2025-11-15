@@ -6,22 +6,22 @@ output:
 
 pre-commit:
   jobs:
-    - name: exexutable-format
-      root: "executables/"
+    - name: bin-src-format
+      root: "bin-src/"
       glob:
-        - "executables/src/*.{js,ts,tsx,jsx}"
-        - "executables/src/**/*.{js,ts,tsx,jsx}"
+        - "bin-src/src/*.{js,ts,tsx,jsx}"
+        - "bin-src/src/**/*.{js,ts,tsx,jsx}"
       run: npx prettier --write {staged_files}
       stage_fixed: true
       skip:
         - merge
         - rebase
 
-    - name: executables-lint
-      root: "executables/"
+    - name: bin-src-lint
+      root: "bin-src/"
       glob:
-        - "executables/src/*.{js,ts,tsx,jsx}"
-        - "executables/src/**/*.{js,ts,tsx,jsx}"
+        - "bin-src/src/*.{js,ts,tsx,jsx}"
+        - "bin-src/src/**/*.{js,ts,tsx,jsx}"
       run: npx xo --fix {staged_files}
       stage_fixed: true
       skip:
