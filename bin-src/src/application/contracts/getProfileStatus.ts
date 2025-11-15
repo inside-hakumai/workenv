@@ -41,5 +41,6 @@ export async function getProfileStatus(profileName: string): Promise<ProfileStat
       locked: state.locked,
       ...(lastLaunchedAt ? { lastLaunchedAt } : {}),
     },
+    activeSession: undefined,
   };
 }
