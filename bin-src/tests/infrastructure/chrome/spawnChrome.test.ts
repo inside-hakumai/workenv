@@ -26,7 +26,9 @@ type MockChromeProcess = EventEmitter & {
 const createMockChromeProcess = (pid?: number): MockChromeProcess => {
   const stderr = new EventEmitter() as MockChromeProcess['stderr'];
   const processEmitter = new EventEmitter() as MockChromeProcess;
-  processEmitter.pid = pid;
+  if (pid !== undefined) {
+    processEmitter.pid = pid;
+  }
   processEmitter.stderr = stderr;
   processEmitter.kill = vi.fn();
   return processEmitter;
@@ -39,7 +41,10 @@ let processKillSpy: ReturnType<typeof vi.spyOn>;
 describe('spawnChrome', () => {
   beforeEach(() => {
     spawnMock.mockReset();
-    processKillSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
+    processKillSpy = vi.spyOn(process, 'kill') as unknown as ReturnType<typeof vi.spyOn>;
+    processKillSpy.mockImplementation(() => {
+      return true;
+    });
   });
 
   afterEach(() => {

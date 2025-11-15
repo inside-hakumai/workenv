@@ -3,6 +3,8 @@ import { describe, expect, test, afterEach, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import ProfileSummary from '../../../src/ui/components/ProfileSummary.js';
 
+void React;
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
