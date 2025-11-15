@@ -22,6 +22,7 @@ const config: FlatXoConfig = [
       ],
       'unicorn/prefer-event-target': 'off',
       'no-warning-comments': 'off',
+      'max-params': 'off',
     },
   },
   {
