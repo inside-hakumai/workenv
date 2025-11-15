@@ -18,5 +18,5 @@ workenv/
 │  ├─ scripts/                   Utility scripts
 │  ├─ tmux/                      tmux profiles
 │  └─ zsh/                       zsh-shell setup
-└─ executables/                  Sources for `dist/bin` executables
+└─ bin-src/                      Sources for `dist/bin` executables
 ```
