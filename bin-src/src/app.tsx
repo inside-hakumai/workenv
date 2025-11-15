@@ -1,4 +1,4 @@
-import { Box, Spacer, Text } from 'ink';
+import { Box, Text } from 'ink';
 import { useEffect, useMemo, useState } from 'react';
 import type { ParsedCliArgs } from './cli/args.js';
 import type { CreateSessionResponse } from './application/services/remoteDebuggingService.js';
