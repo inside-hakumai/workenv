@@ -68,6 +68,8 @@ export function registerTerminationHandlers(
   onTerminate: (signal: NodeJS.Signals) => void,
 ): void {
   for (const signal of terminationSignals) {
-    register(signal, () => onTerminate(signal));
+    register(signal, () => {
+      onTerminate(signal);
+    });
   }
 }

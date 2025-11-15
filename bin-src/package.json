@@ -19,7 +19,7 @@
     "dev": "tsx watch ./src/cli.tsx",
     "gwm:start": "tsx ./src/cli/gwm.ts",
     "test": "vitest run --typecheck",
-    "lint": "xo --fix",
+    "lint": "xo --fix src tests",
     "format": "prettier --write ."
   },
   "dependencies": {

@@ -4,12 +4,12 @@ import { access, mkdir, constants as fsConstants } from 'node:fs/promises';
 import { ConfigurationError } from '../../shared/errors.js';
 
 const worktreeDirectoryName = '.git-worktree-manager';
-const invalidCharactersPattern = /[^A-Za-z0-9._-]+/g;
+const invalidCharactersPattern = /[^\w.-]+/g;
 const repeatedUnderscorePattern = /_+/g;
-const alphanumericPattern = /[A-Za-z0-9]/;
+const alphanumericPattern = /[A-Za-z\d]/;
 
 /**
- * worktreeベースディレクトリの絶対パスを取得する。
+ * Worktreeベースディレクトリの絶対パスを取得する。
  *
  * @returns ホームディレクトリ配下の`.git-worktree-manager`
  */
@@ -18,7 +18,7 @@ export function getWorktreeBaseDir(): string {
 }
 
 /**
- * worktreeベースディレクトリを作成し、書き込み可能であることを保証する。
+ * Worktreeベースディレクトリを作成し、書き込み可能であることを保証する。
  *
  * @returns 利用可能になったベースディレクトリのパス
  * @throws ConfigurationError ディレクトリの作成または権限確認に失敗した場合
@@ -53,7 +53,7 @@ export async function ensureWorktreeBaseDir(): Promise<string> {
  * @throws ConfigurationError 安全な文字列へ変換できない場合
  */
 function sanitizeRepositoryName(repoName: string): string {
-  const sanitized = repoName.replace(invalidCharactersPattern, '_').replace(repeatedUnderscorePattern, '_');
+  const sanitized = repoName.replaceAll(invalidCharactersPattern, '_').replaceAll(repeatedUnderscorePattern, '_');
 
   if (sanitized.length === 0 || !alphanumericPattern.test(sanitized)) {
     throw new ConfigurationError('リポジトリ名を安全なディレクトリ名へ変換できませんでした。');

@@ -16,11 +16,11 @@ export type ProfileStatusResponse = {
     dataDirectory: string;
     /** ロック状態 */
     locked: boolean;
-    /** 最終起動日時（ISO 8601、存在しない場合はnull） */
-    lastLaunchedAt: string | null;
+    /** 最終起動日時（ISO 8601、存在しない場合はundefined） */
+    lastLaunchedAt?: string;
   };
-  /** アクティブセッション情報（Phase5実装まではnull） */
-  activeSession: null;
+  /** アクティブセッション情報（Phase5実装まではundefined） */
+  activeSession?: undefined;
 };
 
 /**
@@ -32,13 +32,15 @@ export type ProfileStatusResponse = {
 export async function getProfileStatus(profileName: string): Promise<ProfileStatusResponse> {
   const state = await getProfileState(profileName);
 
+  const lastLaunchedAt = state.lastLaunchedAt?.toISOString();
+
   return {
     profile: {
       profileName: state.profileName,
       dataDirectory: state.dataDirectory,
       locked: state.locked,
-      lastLaunchedAt: state.lastLaunchedAt?.toISOString() ?? null,
+      ...(lastLaunchedAt ? { lastLaunchedAt } : {}),
     },
-    activeSession: null,
+    activeSession: undefined,
   };
 }

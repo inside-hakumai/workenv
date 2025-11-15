@@ -6,6 +6,7 @@ import { render } from 'ink';
 import meow from 'meow';
 import { createElement } from 'react';
 import GwmApp from '../ui/gwm/App.js';
+import { exitCodes } from '../shared/errors.js';
 import { parseBranchInput } from './gwm/args.js';
 import {
   deriveSignalExitCode,
@@ -13,7 +14,6 @@ import {
   registerTerminationHandlers,
   type FailureReporter,
 } from './gwm/runtime.js';
-import { exitCodes } from '../shared/errors.js';
 
 const cli = meow(
   `
@@ -32,10 +32,10 @@ const cli = meow(
 );
 
 const reporter: FailureReporter = {
-  logError: message => {
+  logError(message) {
     stderr.write(`${message}\n`);
   },
-  setExitCode: code => {
+  setExitCode(code) {
     process.exitCode = code;
   },
 };
@@ -44,7 +44,7 @@ const main = async () => {
   try {
     const { branch } = parseBranchInput({
       input: cli.input,
-      showHelp: exitCode => {
+      showHelp(exitCode) {
         stderr.write(`${cli.help.trim()}\n`);
         process.exitCode = exitCode ?? exitCodes.configurationError;
       },
