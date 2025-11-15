@@ -77,7 +77,8 @@ export async function runGitCommand(
       stderrBuffer += stderrDecoder.decode(chunk, { stream: true });
     };
 
-    const handleClose = (code: number | undefined, signal: NodeJS.Signals | undefined) => {
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types -- Node.JSのcloseイベントの型定義に合わせる必要があるため
+    const handleClose = (code: number | null, signal: NodeJS.Signals | null) => {
       cleanup();
       if (settled) {
         return;
