@@ -2,7 +2,7 @@
  * セッション終了契約のテスト
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import type { RemoteDebugSession } from '../../../src/domain/remoteDebugSession.js';
 import { endSession } from '../../../src/application/contracts/endSession.js';
 import { clearAllSessions } from '../../../src/infrastructure/session/sessionRegistry.js';

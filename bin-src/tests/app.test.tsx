@@ -12,6 +12,8 @@ import {
   trackChromeProcess,
 } from './helpers/chromeTestUtils.js';
 
+void React;
+
 describe('App', () => {
   afterEach(() => {
     cleanupChromeTestArtifacts();

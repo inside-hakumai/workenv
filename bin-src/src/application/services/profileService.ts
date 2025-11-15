@@ -12,7 +12,7 @@ const metadataFileName = 'profile.json';
 type ProfileMetadata = {
   profileName: string;
   createdAt: string;
-  lastLaunchedAt: string | undefined;
+  lastLaunchedAt: string | null;
 };
 
 /**
@@ -99,7 +99,7 @@ export async function updateLastLaunchedAt(profileName: string, launchedAt: Date
 
   return {
     ...createProfileState(profileName, directoryState, updatedMetadata, false),
-    lastLaunchedAt: new Date(updatedMetadata.lastLaunchedAt),
+    lastLaunchedAt: new Date(updatedMetadata.lastLaunchedAt!),
   };
 }
 

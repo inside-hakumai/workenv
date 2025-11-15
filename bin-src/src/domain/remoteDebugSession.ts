@@ -22,9 +22,9 @@ export type RemoteDebugSession = {
   /** リモートデバッグポート */
   port: number;
   /** WebSocketエンドポイント（Chrome起動後に取得） */
-  wsEndpoint?: string;
+  wsEndpoint?: string | undefined;
   /** ChromeプロセスのPID */
-  chromeProcessPid?: number;
+  chromeProcessPid?: number | undefined;
   /** 起動日時 */
   launchedAt: Date;
   /** セッション状態 */

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Text } from 'ink';
 
 /**
@@ -14,7 +13,7 @@ export type ProfileSummaryProps = {
     /** ロック状態 */
     locked: boolean;
     /** 最終起動日時 */
-    lastLaunchedAt?: Date;
+    lastLaunchedAt?: Date | undefined;
   };
 };
 

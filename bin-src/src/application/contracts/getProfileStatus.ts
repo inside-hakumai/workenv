@@ -17,10 +17,10 @@ export type ProfileStatusResponse = {
     /** ロック状態 */
     locked: boolean;
     /** 最終起動日時（ISO 8601、存在しない場合はnull） */
-    lastLaunchedAt: string | undefined;
+    lastLaunchedAt: string | null;
   };
   /** アクティブセッション情報（Phase5実装まではnull） */
-  activeSession: undefined;
+  activeSession: null;
 };
 
 /**
