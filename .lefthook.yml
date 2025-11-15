@@ -11,6 +11,8 @@ pre-commit:
       glob:
         - "bin-src/src/*.{js,ts,tsx,jsx}"
         - "bin-src/src/**/*.{js,ts,tsx,jsx}"
+        - "bin-src/tests/*.{js,ts,tsx,jsx}"
+        - "bin-src/tests/**/*.{js,ts,tsx,jsx}"
       run: npx prettier --write {staged_files}
       stage_fixed: true
       skip:
@@ -22,6 +24,8 @@ pre-commit:
       glob:
         - "bin-src/src/*.{js,ts,tsx,jsx}"
         - "bin-src/src/**/*.{js,ts,tsx,jsx}"
+        - "bin-src/tests/*.{js,ts,tsx,jsx}"
+        - "bin-src/tests/**/*.{js,ts,tsx,jsx}"
       run: npx xo --fix {staged_files}
       stage_fixed: true
       skip:
