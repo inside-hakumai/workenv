@@ -29,6 +29,7 @@ const createMockChromeProcess = (pid?: number): MockChromeProcess => {
   if (pid !== undefined) {
     processEmitter.pid = pid;
   }
+
   processEmitter.stderr = stderr;
   processEmitter.kill = vi.fn();
   return processEmitter;

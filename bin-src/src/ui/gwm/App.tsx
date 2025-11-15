@@ -1,5 +1,5 @@
-import { Box, Text } from 'ink';
 import { stderr } from 'node:process';
+import { Box, Text } from 'ink';
 import { useEffect, useState } from 'react';
 import { createWorktree, type WorktreeCreationResult } from '../../usecase/createWorktree.js';
 
@@ -14,7 +14,7 @@ type AppState =
   | { status: 'error'; error: Error };
 
 /**
- * worktree作成の進捗・結果・エラーをInk UIで表示するコンポーネント
+ * Worktree作成の進捗・結果・エラーをInk UIで表示するコンポーネント
  *
  * @param branch - CLIで指定されたブランチ名
  * @returns Inkが描画するノード

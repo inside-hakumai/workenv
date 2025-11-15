@@ -14,10 +14,7 @@ vi.mock('node:os', () => ({
 vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn(),
   access: vi.fn(),
-  constants: {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    W_OK: 2,
-  },
+  constants: { W_OK: 2 },
 }));
 
 const homedirMock = vi.mocked(homedir);
