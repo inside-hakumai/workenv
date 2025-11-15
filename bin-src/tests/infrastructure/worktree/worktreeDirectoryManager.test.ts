@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { homedir } from 'node:os';
 import { access, mkdir, constants as fsConstants } from 'node:fs/promises';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   ensureWorktreeBaseDir,
   buildWorktreeTargetPath,
@@ -14,7 +14,10 @@ vi.mock('node:os', () => ({
 vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn(),
   access: vi.fn(),
-  constants: { W_OK: 2 },
+  constants: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    W_OK: 2,
+  },
 }));
 
 const homedirMock = vi.mocked(homedir);
