@@ -83,3 +83,84 @@ export class ChromeLaunchError extends CliError {
     super(message, exitCodes.chromeLaunchFailed);
   }
 }
+
+/**
+ * Gitコマンドが失敗した際のエラー
+ */
+export class GitCommandError extends CliError {
+  /**
+   * @param message - 利用者へ提示するメッセージ
+   * @param command - 実行したgitコマンド引数一覧
+   * @param stderr - gitが出力した標準エラー全文
+   * @param gitExitCode - gitプロセスの終了コード（取得できない場合はundefined）
+   * @param signal - プロセスを終了させたシグナル（存在する場合）
+   */
+  constructor(
+    message: string,
+    public readonly command: readonly string[],
+    public readonly stderr: string,
+    public readonly gitExitCode: number | undefined,
+    public readonly signal?: NodeJS.Signals,
+  ) {
+    super(message, exitCodes.generalError);
+  }
+}
+
+/**
+ * Gitバイナリが検出できない場合のエラー
+ */
+export class GitNotFoundError extends CliError {
+  constructor(message: string) {
+    super(message, exitCodes.generalError);
+  }
+}
+
+/**
+ * Gitリポジトリ外でコマンドが実行された場合のエラー
+ */
+export class NotAGitRepositoryError extends CliError {
+  constructor(message: string) {
+    super(message, exitCodes.generalError);
+  }
+}
+
+/**
+ * 指定したブランチをGitが検出できない場合のエラー
+ */
+export class BranchNotFoundError extends CliError {
+  constructor(message: string) {
+    super(message, exitCodes.generalError);
+  }
+}
+
+/**
+ * Worktree衝突の詳細
+ */
+export type WorktreeConflictDetail =
+  | {
+      /** 衝突種別: 既存パス */
+      readonly type: 'path';
+      /** 既に存在するworktreeのパス */
+      readonly existingPath: string;
+    }
+  | {
+      /** 衝突種別: 既存ブランチ */
+      readonly type: 'branch';
+      /** 既に存在するworktreeのパス */
+      readonly existingPath: string;
+      /** 衝突したブランチのrefs表記 */
+      readonly branchRef: string;
+    };
+
+/**
+ * 既存worktreeと衝突した場合のエラー
+ */
+export class WorktreeConflictError extends CliError {
+  constructor(
+    message: string,
+    /** 衝突の詳細一覧 */
+    public readonly conflicts: readonly WorktreeConflictDetail[],
+  ) {
+    super(message, exitCodes.generalError);
+  }
+}

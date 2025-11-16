@@ -1,9 +1,10 @@
 {
   "name": "workenv-bin-src",
   "version": "0.0.1",
-  "description": "CLI tool to launch Google Chrome with remote debugging enabled for automation and testing",
+  "description": "CLI tools for development environment",
   "bin": {
-    "chrome-remote-debug": "dist/dopen"
+    "chrome-remote-debug": "dist/dopen",
+    "git-worktree-manager": "dist/gwm"
   },
   "license": "UNLICENSED",
   "private": true,
@@ -15,10 +16,15 @@
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsdown",
-    "distribute": "cp dist/dopen ../dist/bin/dopen",
-    "dev": "tsx watch ./src/cli.tsx",
+    "build:dopen": "tsdown --entry ./src/cli.tsx",
+    "build:gwm": "tsdown --entry ./src/cli/gwm.ts",
+    "distribute": "npm run distribute:dopen && npm run distribute:gwm",
+    "distribute:dopen": "cp dist/dopen ../dist/bin/dopen",
+    "distribute:gwm": "cp dist/gwm ../dist/bin/gwm",
+    "start:dopen": "tsx ./src/cli.tsx",
+    "start:gwm": "tsx ./src/cli/gwm.ts",
     "test": "vitest run --typecheck",
-    "lint": "xo --fix",
+    "lint": "xo --fix src tests",
     "format": "prettier --write ."
   },
   "dependencies": {
