@@ -35,7 +35,7 @@ export type WorktreeProvisioningResult = {
 /**
  * Worktree作成のオーケストレーションを行う
  *
- * @param _request - ブランチ情報
+ * @param request - ブランチ情報
  * @returns 作成結果
  */
 export async function provisionWorktree(request: WorktreeProvisioningRequest): Promise<WorktreeProvisioningResult> {
