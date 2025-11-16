@@ -1,10 +1,10 @@
 {
   "name": "workenv-bin-src",
   "version": "0.0.1",
-  "description": "CLI tool to launch Google Chrome with remote debugging enabled for automation and testing",
+  "description": "CLI tools for development environment",
   "bin": {
     "chrome-remote-debug": "dist/dopen",
-    "gwm": "dist/gwm"
+    "git-worktree-manager": "dist/gwm"
   },
   "license": "UNLICENSED",
   "private": true,
