@@ -114,3 +114,53 @@ export class GitNotFoundError extends CliError {
     super(message, exitCodes.generalError);
   }
 }
+
+/**
+ * Gitリポジトリ外でコマンドが実行された場合のエラー
+ */
+export class NotAGitRepositoryError extends CliError {
+  constructor(message: string) {
+    super(message, exitCodes.generalError);
+  }
+}
+
+/**
+ * 指定したブランチをGitが検出できない場合のエラー
+ */
+export class BranchNotFoundError extends CliError {
+  constructor(message: string) {
+    super(message, exitCodes.generalError);
+  }
+}
+
+/**
+ * Worktree衝突の詳細
+ */
+export type WorktreeConflictDetail =
+  | {
+      /** 衝突種別: 既存パス */
+      readonly type: 'path';
+      /** 既に存在するworktreeのパス */
+      readonly existingPath: string;
+    }
+  | {
+      /** 衝突種別: 既存ブランチ */
+      readonly type: 'branch';
+      /** 既に存在するworktreeのパス */
+      readonly existingPath: string;
+      /** 衝突したブランチのrefs表記 */
+      readonly branchRef: string;
+    };
+
+/**
+ * 既存worktreeと衝突した場合のエラー
+ */
+export class WorktreeConflictError extends CliError {
+  constructor(
+    message: string,
+    /** 衝突の詳細一覧 */
+    public readonly conflicts: readonly WorktreeConflictDetail[],
+  ) {
+    super(message, exitCodes.generalError);
+  }
+}
