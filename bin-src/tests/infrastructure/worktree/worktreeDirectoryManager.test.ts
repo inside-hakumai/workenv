@@ -115,4 +115,22 @@ describe('worktreeDirectoryManager', () => {
     // 無効なリポジトリ名を示す構成エラーが発生する
     expect(buildPath).toThrow(ConfigurationError);
   });
+
+  const invalidSanitizedBranches = ['feature/new-ui', 'feature branch'] as const;
+
+  for (const invalidSanitizedBranch of invalidSanitizedBranches) {
+    test(`サニタイズ結果に禁止文字が含まれる場合は構成エラーを投げる: ${invalidSanitizedBranch}`, () => {
+      // Given
+      // サニタイズ済みであるべきブランチ名にスラッシュや空白が混入している状態
+      const repoName = 'repo name';
+
+      // When
+      // 禁止文字を含むブランチ名でターゲットパス構築を実行したとき
+      const buildPath = () => buildWorktreeTargetPath(repoName, invalidSanitizedBranch);
+
+      // Then
+      // ブランチ名のサニタイズ結果が不正として構成エラーが発生する
+      expect(buildPath).toThrow(ConfigurationError);
+    });
+  }
 });
