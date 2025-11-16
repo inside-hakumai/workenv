@@ -19,7 +19,7 @@ describe('createWorktree', () => {
 
   test('ブランチ名をサニタイズしてサービスを実行し、結果を返す', async () => {
     // Given
-    // QA担当者がfeatureブランチのworktree作成を要求し、サニタイズとサービスが正常応答する状態
+    // featureブランチのworktree作成を要求したときにサニタイズとサービスが正常に応答する
     const branch = 'feature/login-page';
     const sanitizedBranch: SanitizedBranchName = {
       original: branch,
@@ -36,7 +36,7 @@ describe('createWorktree', () => {
     const { createWorktree } = await import('../../src/usecase/createWorktree.js');
 
     // When
-    // ユースケースを実行したとき
+    // createWorktreeを実行したとき
     const result = await createWorktree({ branch });
 
     // Then
@@ -60,7 +60,7 @@ describe('createWorktree', () => {
     const { createWorktree } = await import('../../src/usecase/createWorktree.js');
 
     // When
-    // ユースケースを実行したとき
+    // createWorktreeを実行したとき
     const act = async () => createWorktree({ branch });
 
     // Then
