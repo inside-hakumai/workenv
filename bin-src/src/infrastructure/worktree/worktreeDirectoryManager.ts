@@ -7,6 +7,7 @@ const worktreeDirectoryName = '.git-worktree-manager';
 const invalidCharactersPattern = /[^\w.-]+/g;
 const repeatedUnderscorePattern = /_+/g;
 const alphanumericPattern = /[A-Za-z\d]/;
+const safeSegmentPattern = /^[\w.-]+$/;
 
 /**
  * Worktreeベースディレクトリの絶対パスを取得する。
@@ -46,6 +47,18 @@ export async function ensureWorktreeBaseDir(): Promise<string> {
 }
 
 /**
+ * ディレクトリ名として安全か検証し、不正な場合は構成エラーを発生させる。
+ *
+ * @param value - 検証対象の文字列
+ * @param errorMessage - エラー発生時に利用するメッセージ
+ */
+function assertSafeSegment(value: string, errorMessage: string): void {
+  if (value.length === 0 || !alphanumericPattern.test(value) || !safeSegmentPattern.test(value)) {
+    throw new ConfigurationError(errorMessage);
+  }
+}
+
+/**
  * リポジトリ名からファイルシステムで安全なセグメントを生成する。
  *
  * @param repoName - `basename`したリポジトリ名
@@ -54,11 +67,7 @@ export async function ensureWorktreeBaseDir(): Promise<string> {
  */
 function sanitizeRepositoryName(repoName: string): string {
   const sanitized = repoName.replaceAll(invalidCharactersPattern, '_').replaceAll(repeatedUnderscorePattern, '_');
-
-  if (sanitized.length === 0 || !alphanumericPattern.test(sanitized)) {
-    throw new ConfigurationError('リポジトリ名を安全なディレクトリ名へ変換できませんでした。');
-  }
-
+  assertSafeSegment(sanitized, 'リポジトリ名を安全なディレクトリ名へ変換できませんでした。');
   return sanitized;
 }
 
@@ -71,9 +80,7 @@ function sanitizeRepositoryName(repoName: string): string {
  * @throws ConfigurationError 入力値から安全なディレクトリ名を構築できない場合
  */
 export function buildWorktreeTargetPath(repoName: string, sanitizedBranchName: string): string {
-  if (sanitizedBranchName.length === 0 || !alphanumericPattern.test(sanitizedBranchName)) {
-    throw new ConfigurationError('ブランチ名のサニタイズ結果が無効です。');
-  }
+  assertSafeSegment(sanitizedBranchName, 'ブランチ名のサニタイズ結果が無効です。');
 
   const sanitizedRepoName = sanitizeRepositoryName(repoName);
   const directoryName = `${sanitizedRepoName}_${sanitizedBranchName}`;
