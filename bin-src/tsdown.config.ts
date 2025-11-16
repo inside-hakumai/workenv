@@ -32,6 +32,7 @@ const shouldBundleDependency = (id: string): boolean => {
 export default defineConfig({
   entry: {
     dopen: './src/cli.tsx',
+    gwm: './src/cli/gwm.ts',
   },
   platform: 'node',
   minify: true,
