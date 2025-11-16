@@ -1,9 +1,8 @@
-/**
- * Worktree作成ユースケースの入出力を定義するモジュール
- */
+import { provisionWorktree } from '../application/services/worktreeProvisioningService.js';
+import { sanitizeBranchName } from '../domain/branchNameSanitizer.js';
 
 /**
- * worktree作成実行時にCLIから受け取る入力値
+ * Worktree作成実行時にCLIから受け取る入力値
  */
 export type CreateWorktreeInput = {
   /** CLIで指定されたブランチ名 */
@@ -30,17 +29,10 @@ export type WorktreeCreationResult = {
  * @param input - CLIから受け取ったブランチ情報
  * @returns worktree作成結果
  */
-export async function createWorktree(_input: CreateWorktreeInput): Promise<WorktreeCreationResult> {
-  // Throw new Error('createWorktree usecase is not implemented yet.');
-  // TODO: 実装
+export async function createWorktree(input: CreateWorktreeInput): Promise<WorktreeCreationResult> {
+  const sanitizedBranch = sanitizeBranchName(input.branch);
 
-  await new Promise<void>(resolve => {
-    setTimeout(resolve, 1000);
+  return provisionWorktree({
+    branch: sanitizedBranch,
   });
-  return {
-    branchName: _input.branch,
-    sanitizedBranchName: _input.branch,
-    targetPath: '/tmp/mock',
-    headCommit: 'abc123def456',
-  };
 }
