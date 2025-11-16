@@ -72,7 +72,7 @@ describe('ビルド構成', () => {
     const gwmBin = packageJson.bin?.['gwm'];
 
     // Then
-    // gmw実行ファイルがdist/gwmを指している
+    // gwm実行ファイルがdist/gwmを指している
     expect(gwmBin).toBe('dist/gwm');
   });
 
