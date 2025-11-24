@@ -6,4 +6,5 @@
 
 ## `kiro-*`
 - [gotalab/cc-sdd](https://github.com/gotalab/cc-sdd)をベースにしている。
+  - `npx cc-sdd@latest --codex --lang ja`
   - ベース: https://github.com/gotalab/cc-sdd/releases/tag/v2.0.3
