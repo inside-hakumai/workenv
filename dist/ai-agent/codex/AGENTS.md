@@ -34,6 +34,7 @@
 ### Test Naming and Documentation
 - Name test functions using the same naming conventions as production code.
 - Document each test case in Japanese using the language/framework-appropriate mechanism:
-  - JUnit: use `@DisplayName`.
+  - Kotlin or Java with JUnit: use `@DisplayName`.
+  - TypeScript with Vitest: use `describe` and `it`.
   - Others: add a documentation comment.
 - Test descriptions must clearly state both the precondition and the expected result, in a format like "〜の場合, 〜する"
