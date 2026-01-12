@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+
+find ~/.codex/sessions -type f -name '*.jsonl' -print0 \
+  | LC_ALL=C gsort --reverse -z \
+  | while IFS= read -r -d '' f; do
+      cat -- "$f"
+    done \
+  | jq -r '
+      select(.payload.type=="user_message")
+      | (.payload.message | gsub("\n"; "\\n"))
+        + "\u001f"
+        + (.payload.message | @base64)
+    ' \
+  | fzf --delimiter $'\x1f' --with-nth=1 --accept-nth=2 \
+        --preview 'printf "%s" {2} | base64 --decode' \
+        --preview-window=wrap \
+  | base64 --decode \
+  | pbcopy
