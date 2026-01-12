@@ -1,5 +1,30 @@
 #!/usr/bin/env bash
+#
+# Codex CLI に過去に入力したプロンプトを検索する
+#
+# 依存コマンド:
+#   - gsort: https://formulae.brew.sh/formula/coreutils
+#   - jq: https://github.com/jqlang/jq
+#   - fzf: https://github.com/junegunn/fzf
+#
 
+set -euo pipefail
+
+# 必要なコマンドの存在チェック
+required_commands=("gsort" "jq" "fzf")
+missing_commands=()
+
+for cmd in "${required_commands[@]}"; do
+  if ! command -v "$cmd" &>/dev/null; then
+    missing_commands+=("$cmd")
+  fi
+done
+
+if [[ ${#missing_commands[@]} -gt 0 ]]; then
+  echo "Error: Required command(s) not found: ${missing_commands[*]}" >&2
+  echo "Please install the missing command(s) and try again." >&2
+  exit 1
+fi
 
 find ~/.codex/sessions -type f -name '*.jsonl' -print0 \
   | LC_ALL=C gsort --reverse -z \
