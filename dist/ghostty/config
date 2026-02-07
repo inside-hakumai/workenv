@@ -1,0 +1,85 @@
+# This is the configuration file for Ghostty.
+#
+# This template file has been automatically created at the following
+# path since Ghostty couldn't find any existing config files on your system:
+#
+#   /Users/yonai/Library/Application Support/com.mitchellh.ghostty/config
+#
+# The template does not set any default options, since Ghostty ships
+# with sensible defaults for all options. Users should only need to set
+# options that they want to change from the default.
+#
+# Run `ghostty +show-config --default --docs` to view a list of
+# all available config options and their default values.
+#
+# Additionally, each config option is also explained in detail
+# on Ghostty's website, at https://ghostty.org/docs/config.
+#
+# Ghostty can reload the configuration while running by using the menu
+# options or the bound key (default: Command + Shift + comma on macOS and
+# Control + Shift + comma on other platforms). Not all config options can be
+# reloaded while running; some only apply to new windows and others may require
+# a full restart to take effect.
+
+# Config syntax crash course
+# ==========================
+# # The config file consists of simple key-value pairs,
+# # separated by equals signs.
+# font-family = Iosevka
+# window-padding-x = 2
+#
+# # Spacing around the equals sign does not matter.
+# # All of these are identical:
+# key=value
+# key= value
+# key =value
+# key = value
+#
+# # Any line beginning with a # is a comment. It's not possible to put
+# # a comment after a config option, since it would be interpreted as a
+# # part of the value. For example, this will have a value of "#123abc":
+# background = #123abc
+#
+# # Empty values are used to reset config keys to default.
+# key =
+#
+# # Some config options have unique syntaxes for their value,
+# # which is explained in the docs for that config option.
+# # Just for example:
+# resize-overlay-duration = 4s 200ms
+
+background = #263238
+foreground = #eceff1
+
+cursor-color = #eeeeee
+cursor-text  = #000000
+
+selection-background = #607d8b
+selection-foreground = #eceff1
+
+# ANSI 16-color palette (0-15)
+palette = 0=#546e7a
+palette = 1=#ff5252
+palette = 2=#69f0ae
+palette = 3=#ffd740
+palette = 4=#40c4ff
+palette = 5=#ff4081
+palette = 6=#64fcda
+palette = 7=#ffffff
+palette = 8=#b0bec5
+palette = 9=#ff8a80
+palette = 10=#b9f6ca
+palette = 11=#ffe57f
+palette = 12=#80d8ff
+palette = 13=#ff80ab
+palette = 14=#a7fdeb
+palette = 15=#ffffff
+
+bold-color = bright
+
+font-family = "HackGen35 Console NF"
+font-size = 13
+font-thicken = true
+font-thicken-strength = 255
+
+adjust-cell-height = 1
