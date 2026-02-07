@@ -83,3 +83,7 @@ font-thicken = true
 font-thicken-strength = 255
 
 adjust-cell-height = 1
+
+background-image = "~/Pictures/ghostty-background.png"
+background-image-opacity = 0.2
+background-image-fit = "cover"
