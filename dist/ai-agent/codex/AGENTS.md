@@ -9,8 +9,7 @@
 
 ## Programming Rules
 
-- Write documentation comments in Japanese for all functions and classes in production code so that the specifications of the function or class are clearly understood. 
-- For test code comments and documentation, follow the "Test Implementation Rules" section.
+- Write documentation comments in Japanese for all functions and classes in production code. Do not add documentation comments in test code; rely on the test display name API provided by the language or test framework (e.g., `@DisplayName` in Kotlin/JUnit) and Given-When-Then comments instead.
 - Write self-documenting code that does not require inline comments.
 - Only add inline comments when the intent cannot be expressed through the code itself.
 - Avoid redundant comments that duplicate what the code already expresses.
