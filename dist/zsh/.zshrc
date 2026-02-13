@@ -20,7 +20,7 @@ if [ -f ~/.safe-chain/scripts/init-posix.sh ]; then
 fi
 
 
-# iTerm上で特定のプロファイルを選択している場合のみ、fish shellを起動する
+# iTerm上で特定のプロファイルを選択している、もしくはGhostty上で起動している場合のみ、fish shellを起動する
 if [[ -o interactive ]] && [[ -z "$INTELLIJ_ENVIRONMENT_READER" ]] && [[ "$ITERM_PROFILE" == "Hakumai" || -n "$GHOSTTY_BIN_DIR" ]] && [[ "$CURSOR_AGENT" != "1" ]]; then
   exec fish
   return
