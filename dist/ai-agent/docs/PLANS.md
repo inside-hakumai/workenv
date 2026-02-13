@@ -12,6 +12,15 @@ When discussing an executable specification (ExecPlan), record decisions in a lo
 
 When researching a design with challenging requirements or significant unknowns, use milestones to implement proof of concepts, "toy implementations", etc., that allow validating whether the user's proposal is feasible. Read the source code of libraries by finding or acquiring them, research deeply, and include prototypes to guide a fuller implementation.
 
+## Language / 言語
+
+NON-NEGOTIABLE REQUIREMENTS (Language):
+* ExecPlan の説明文（prose）はすべて日本語で記述する。
+* ただし、コード、CLI コマンド、ログ出力、エラーメッセージ、ファイルパス、関数名/変数名/ライブラリ名などの識別子は原文（英語）を保持してよい。
+* 必須セクション見出しは日本語＋英語を併記する（例：`## Progress / 進捗`）。本文でも英語のセクション名を参照する場合は、初出で日本語説明を添える。
+* 英語の専門用語を使う場合は、初出で必ず日本語で定義する（括弧書き可）。定義できない用語は使わない。
+* 提出前に「prose が日本語になっているか」を自己点検し、不要な英語文が混入していれば日本語に直す（ログ/引用は除く）。
+
 ## Requirements
 
 NON-NEGOTIABLE REQUIREMENTS:
