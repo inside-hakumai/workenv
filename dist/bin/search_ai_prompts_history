@@ -47,26 +47,31 @@ find "${find_targets[@]}" -type f -name '*.jsonl' ! -name 'agent-*.jsonl' -exec 
       tail -r -- "$f"
     done \
   | jq -r '
+      # Codex CLI 形式: {"payload": {"type": "user_message", "message": "..."}}
+      def extract_codex_prompt:
+        .payload.message;
+
+      # Claude Code 形式: {"type": "user", "message": {"content": "..." | [...]}}
+      def extract_claude_prompt:
+        .message.content
+        | if type == "array" then
+            [.[] | select(.type == "text") | .text] | join("\n")
+          else
+            .
+          end;
+
+      # fzf 用に表示テキストと Base64 エンコードしたテキストを区切り文字で結合する
+      def format_for_fzf:
+        (gsub("\n"; "\\n")) + "\u001f" + @base64;
+
       (
-        if .payload.type == "user_message" then
-          .payload.message
-        elif .type == "user" then
-          (
-            .message.content
-            | if type == "array" then
-                [.[] | select(.type == "text") | .text] | join("\n")
-              else
-                .
-              end
-          )
-        else
-          empty
+        if .payload.type == "user_message" then extract_codex_prompt
+        elif .type == "user" then extract_claude_prompt
+        else empty
         end
       ) as $msg
       | select($msg != "")
-      | ($msg | gsub("\n"; "\\n"))
-        + "\u001f"
-        + ($msg | @base64)
+      | $msg | format_for_fzf
     ' \
   | fzf --delimiter $'\x1f' --with-nth=1 --accept-nth=2 \
         --preview 'printf "%s" {2} | base64 --decode' \
