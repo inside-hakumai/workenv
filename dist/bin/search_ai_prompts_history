@@ -61,17 +61,16 @@ find "${find_targets[@]}" -type f -name '*.jsonl' ! -name 'agent-*.jsonl' -exec 
           end;
 
       # fzf 用に表示テキストと Base64 エンコードしたテキストを区切り文字で結合する
-      def format_for_fzf:
-        (gsub("\n"; "\\n")) + "\u001f" + @base64;
+      # $prefix は表示用テキストにのみ付与し、Base64 側には含めない
+      def format_for_fzf($prefix):
+        ($prefix + gsub("\n"; "\\n")) + "\u001f" + @base64;
 
-      (
-        if .payload.type == "user_message" then extract_codex_prompt
-        elif .type == "user" then extract_claude_prompt
-        else empty
-        end
-      ) as $msg
-      | select($msg != "")
-      | $msg | format_for_fzf
+      if .payload.type == "user_message" then
+        extract_codex_prompt | select(. != "") | format_for_fzf("Codex  | ")
+      elif .type == "user" then
+        extract_claude_prompt | select(. != "") | format_for_fzf("Claude | ")
+      else empty
+      end
     ' \
   | fzf --delimiter $'\x1f' --with-nth=1 --accept-nth=2 \
         --preview 'printf "%s" {2} | base64 --decode' \
