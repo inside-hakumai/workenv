@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 #
-# Codex CLI に過去に入力したプロンプトを検索する
+# Codex CLI / Claude Code に過去に入力したプロンプトを検索する
+#
+# 対応ツール:
+#   - Codex CLI  (~/.codex/sessions/*.jsonl)
+#   - Claude Code (~/.claude/projects/*/*.jsonl)
 #
 # 依存コマンド:
-#   - gsort: https://formulae.brew.sh/formula/coreutils
 #   - jq: https://github.com/jqlang/jq
 #   - fzf: https://github.com/junegunn/fzf
 #
@@ -11,7 +14,7 @@
 set -euo pipefail
 
 # 必要なコマンドの存在チェック
-required_commands=("gsort" "jq" "fzf")
+required_commands=("jq" "fzf")
 missing_commands=()
 
 for cmd in "${required_commands[@]}"; do
@@ -26,16 +29,44 @@ if [[ ${#missing_commands[@]} -gt 0 ]]; then
   exit 1
 fi
 
-find ~/.codex/sessions -type f -name '*.jsonl' -print0 \
-  | LC_ALL=C gsort --reverse -z \
-  | while IFS= read -r -d '' f; do
-      cat -- "$f"
+# 検索対象ディレクトリの収集（存在するもののみ）
+find_targets=()
+[[ -d ~/.codex/sessions ]] && find_targets+=(~/.codex/sessions)
+[[ -d ~/.claude/projects ]] && find_targets+=(~/.claude/projects)
+
+if [[ ${#find_targets[@]} -eq 0 ]]; then
+  echo "Error: No history directories found." >&2
+  echo "Expected: ~/.codex/sessions or ~/.claude/projects" >&2
+  exit 1
+fi
+
+find "${find_targets[@]}" -type f -name '*.jsonl' ! -name 'agent-*.jsonl' -exec stat -f '%m %N' {} + \
+  | sort -rn \
+  | cut -d' ' -f2- \
+  | while IFS= read -r f; do
+      tail -r -- "$f"
     done \
   | jq -r '
-      select(.payload.type=="user_message")
-      | (.payload.message | gsub("\n"; "\\n"))
+      (
+        if .payload.type == "user_message" then
+          .payload.message
+        elif .type == "user" then
+          (
+            .message.content
+            | if type == "array" then
+                [.[] | select(.type == "text") | .text] | join("\n")
+              else
+                .
+              end
+          )
+        else
+          empty
+        end
+      ) as $msg
+      | select($msg != "")
+      | ($msg | gsub("\n"; "\\n"))
         + "\u001f"
-        + (.payload.message | @base64)
+        + ($msg | @base64)
     ' \
   | fzf --delimiter $'\x1f' --with-nth=1 --accept-nth=2 \
         --preview 'printf "%s" {2} | base64 --decode' \
