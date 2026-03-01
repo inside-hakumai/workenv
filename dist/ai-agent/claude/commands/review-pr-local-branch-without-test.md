@@ -158,14 +158,26 @@ Each subtask receives the summary from Step 2, including the full diff (or relev
 
 ### Step 5: Output Review Results
 
-Generate a Markdown file in the following format **in Japanese**:
+Save the review result as a Markdown file with the following naming convention and location:
+
+- **Save directory**: `./local_files/pr_review/` (relative to repository root; create if it does not exist)
+- **File name**: `<REPO>_<PR_NUMBER>_<DATE>_<TIME>_<AGENT>.md`
+  - `<REPO>`: Repository name (e.g., `my-app`)
+  - `<PR_NUMBER>`: Pull request number (e.g., `123`)
+  - `<DATE>`: Review date in `YYYYMMDD` format
+  - `<TIME>`: Review time in `HHMM` format (24-hour, local time)
+  - `<AGENT>`: Name of the AI agent that performed the review (e.g., `claude-code`)
+
+Example: `my-app_123_20260218_1430_claude-code.md`
+
+Generate the file in the following format **in Japanese**:
 
 ```markdown
 # プルリクエストレビュー結果
 
 ## 基本情報
 - **ブランチ**: [branch name]
-- **プルリクエスト**: [PR number and title]
+- **プルリクエスト**: [PR number, title and URL]
 - **目的**: [summary of PR purpose]
 
 ## 変更概要
