@@ -22,9 +22,11 @@ npm-debug.log
 ### AI Agent Related Files ###
 AGENTS.md
 CLAUDE.md
+CLAUDE.local.md
 GEMINI.md
 .specify
 .claude
+.claude/tmp_scripts
 .cursor
 .gemini
 .specdd
@@ -34,6 +36,7 @@ GEMINI.md
 ihinspection
 .codex
 .kiro
+.agent
 
 
 # Created by https://www.gitignore.io/api/intellij+all
