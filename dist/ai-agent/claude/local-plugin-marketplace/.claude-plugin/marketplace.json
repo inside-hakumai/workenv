@@ -1,0 +1,17 @@
+{
+    "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+    "name": "ih-local-marketplace",
+    "version": "0.0.1",
+    "description": "inside-hakumai's local plugin marketplace",
+    "owner": {
+      "name": "inside-hakumai",
+      "email": "hyme@insidehakumai.dev"
+    },
+    "plugins": [
+      {
+        "name": "harness-dev",
+        "description": "harness-dev plugin",
+        "source": "./plugins/harness-dev"
+      }
+    ]
+  }

@@ -1,0 +1,5 @@
+{
+  "name": "harness-dev",
+  "version": "0.1.0",
+  "description": "GAN-inspired Planner/Generator/Evaluator harness for long-running development tasks"
+}
