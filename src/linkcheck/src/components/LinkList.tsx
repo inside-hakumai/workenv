@@ -3,7 +3,8 @@ import { Box, Text, useStdout } from "ink";
 import type { LinkState } from "../types.js";
 import { LinkRow } from "./LinkRow.js";
 
-const CHROME_LINES = 4; // header(1) + marginBottom(1) + marginTop(1) + footer(1)
+// header border(2) + header content(1) + headerMargin(1) + scrollIndicators(2) + footerMargin(1) + footer(1)
+const CHROME_LINES = 8;
 const MIN_VISIBLE = 5;
 
 interface Props {
@@ -27,31 +28,39 @@ export function LinkList({ states, selectedIndex }: Props) {
     });
   }, [selectedIndex, visibleCount]);
 
-  const okCount = states.filter((s) => s.status === "ok").length;
   const total = states.length;
+  const okCount = states.filter((s) => s.status === "ok").length;
+  const ngCount = total - okCount;
   const visibleStates = states.slice(
     scrollOffset,
     scrollOffset + visibleCount,
   );
-  const hasMore = total > visibleCount;
   const canScrollUp = scrollOffset > 0;
   const canScrollDown = scrollOffset + visibleCount < total;
 
   return (
     <Box flexDirection="column">
-      <Box marginBottom={1}>
-        <Text bold>Symlink Status</Text>
-        <Text dimColor>
-          {" "}
-          ({okCount}/{total} linked)
+      <Box
+        borderStyle="round"
+        borderColor="blue"
+        paddingX={1}
+        marginBottom={1}
+        justifyContent="space-between"
+      >
+        <Text bold color="blue">
+          Workenv Symlink Checker
         </Text>
-        {hasMore && (
-          <Text dimColor>
-            {" "}
-            [{scrollOffset + 1}-{Math.min(scrollOffset + visibleCount, total)}/
-            {total}]
+        <Box gap={2}>
+          <Text>
+            Total: <Text bold>{total}</Text>
           </Text>
-        )}
+          <Text color="green">
+            ✓ Linked: <Text bold>{okCount}</Text>
+          </Text>
+          <Text color={ngCount > 0 ? "red" : "green"}>
+            ✗ Unlinked: <Text bold>{ngCount}</Text>
+          </Text>
+        </Box>
       </Box>
       {canScrollUp && <Text dimColor>  ▲</Text>}
       {visibleStates.map((state, i) => (
