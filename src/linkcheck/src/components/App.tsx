@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import { Box, Text, useApp, useInput, useStdout } from "ink";
 import { entries } from "../mapping.js";
 import { checkAll, checkLink } from "../checker.js";
 import { fixLink } from "../fixer.js";
 import type { LinkState } from "../types.js";
 import { LinkList } from "./LinkList.js";
-import { ConfirmDialog } from "./ConfirmDialog.js";
+import { ConfirmDialog, DIALOG_HEIGHT } from "./ConfirmDialog.js";
 
 type Mode = "list" | "confirm" | "fixing";
 
 export function App() {
   const { exit } = useApp();
+  const { stdout } = useStdout();
+  const terminalRows = stdout.rows ?? 24;
+
   const [states, setStates] = useState<LinkState[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mode, setMode] = useState<Mode>("list");
@@ -40,6 +43,7 @@ export function App() {
         const selected = states[selectedIndex];
         if (selected && selected.status !== "ok") {
           setMode("confirm");
+          setMessage(undefined);
         }
       }
     },
@@ -83,22 +87,29 @@ export function App() {
     return <Text>チェック中...</Text>;
   }
 
+  const dialogTop = Math.floor((terminalRows - DIALOG_HEIGHT) / 2);
+
   return (
-    <Box flexDirection="column">
+    <Box height={terminalRows} flexDirection="column">
       <LinkList states={states} selectedIndex={selectedIndex} />
+      {message && (
+        <Box>
+          <Text color="green">{message}</Text>
+        </Box>
+      )}
       {mode === "confirm" && states[selectedIndex] && (
-        <Box marginTop={1}>
+        <Box
+          position="absolute"
+          top={Math.max(0, dialogTop)}
+          width="100%"
+          justifyContent="center"
+        >
           <ConfirmDialog
             state={states[selectedIndex]}
             isActive={mode === "confirm"}
             onConfirm={handleConfirm}
             onCancel={handleCancel}
           />
-        </Box>
-      )}
-      {message && (
-        <Box marginTop={1}>
-          <Text color="green">{message}</Text>
         </Box>
       )}
     </Box>
