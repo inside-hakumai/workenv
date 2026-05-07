@@ -18,7 +18,7 @@ export const entries: LinkEntry[] = [
   { source: src("zsh/.zshrc"), target: dest(".zshrc"), kind: "file" },
   { source: src("fish/config.fish"), target: dest(".config/fish/config.fish"), kind: "file" },
   { source: src("fish/fish_plugins"), target: dest(".config/fish/fish_plugins"), kind: "file" },
-  { source: src("fish/starship.toml"), target: dest(".config/starship.toml"), kind: "file" },
+  { source: src("fish/starship.toml"), target: dest(".config/fish/starship.toml"), kind: "file" },
   { source: src("tmux/.tmux.conf"), target: dest(".config/tmux/tmux.conf"), kind: "file" },
 
   // ── Editor / Terminal ──
@@ -42,7 +42,6 @@ export const entries: LinkEntry[] = [
   { source: src("ai-agent/claude/statusline-command.sh"), target: dest(".claude/statusline-command.sh"), kind: "file" },
   { source: src("ai-agent/claude/hooks/check_python_syntax.sh"), target: dest(".claude/hooks/check_python_syntax.sh"), kind: "file" },
   { source: src("ai-agent/claude/skills/tdd"), target: dest(".claude/skills/tdd"), kind: "directory" },
-  { source: src("ai-agent/claude/commands"), target: dest(".claude/commands"), kind: "directory" },
 
   // ── Codex ──
   { source: src("ai-agent/codex/config.toml"), target: dest(".codex/config.toml"), kind: "file" },
