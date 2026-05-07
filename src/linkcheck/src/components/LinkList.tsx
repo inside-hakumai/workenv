@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Box, Text, useStdout } from "ink";
 import type { LinkState } from "../types.js";
+import { shortPath } from "../format.js";
 import { LinkRow } from "./LinkRow.js";
 
 // header border(2) + header content(1) + headerMargin(1) + scrollIndicators(2) + footerMargin(1) + footer(1)
@@ -31,6 +32,16 @@ export function LinkList({ states, selectedIndex }: Props) {
   const total = states.length;
   const okCount = states.filter((s) => s.status === "ok").length;
   const ngCount = total - okCount;
+
+  const { targetWidth, sourceWidth } = useMemo(() => {
+    let maxTarget = 0;
+    let maxSource = 0;
+    for (const s of states) {
+      maxTarget = Math.max(maxTarget, shortPath(s.entry.target).length);
+      maxSource = Math.max(maxSource, shortPath(s.entry.source).length);
+    }
+    return { targetWidth: maxTarget, sourceWidth: maxSource };
+  }, [states]);
   const visibleStates = states.slice(
     scrollOffset,
     scrollOffset + visibleCount,
@@ -68,6 +79,8 @@ export function LinkList({ states, selectedIndex }: Props) {
           key={state.entry.target}
           state={state}
           isSelected={scrollOffset + i === selectedIndex}
+          targetWidth={targetWidth}
+          sourceWidth={sourceWidth}
         />
       ))}
       {canScrollDown && <Text dimColor>  ▼</Text>}
