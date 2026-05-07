@@ -4,8 +4,8 @@ import type { LinkState } from "../types.js";
 import { shortPath } from "../format.js";
 import { LinkRow } from "./LinkRow.js";
 
-// header border(2) + header content(1) + headerMargin(1) + scrollIndicators(2) + footerMargin(1) + footer(1)
-const CHROME_LINES = 8;
+// header border(2) + header content(1) + scrollIndicators(2) + footer(1)
+const CHROME_LINES = 6;
 const MIN_VISIBLE = 5;
 
 interface Props {
@@ -55,7 +55,6 @@ export function LinkList({ states, selectedIndex }: Props) {
         borderStyle="round"
         borderColor="blue"
         paddingX={1}
-        marginBottom={1}
         justifyContent="space-between"
       >
         <Text bold color="blue">
@@ -73,7 +72,9 @@ export function LinkList({ states, selectedIndex }: Props) {
           </Text>
         </Box>
       </Box>
-      {canScrollUp && <Text dimColor>  ▲</Text>}
+      <Box minHeight={1}>
+        {canScrollUp && <Text dimColor>  ▲</Text> }
+      </Box>
       {visibleStates.map((state, i) => (
         <LinkRow
           key={state.entry.target}
@@ -83,8 +84,10 @@ export function LinkList({ states, selectedIndex }: Props) {
           sourceWidth={sourceWidth}
         />
       ))}
-      {canScrollDown && <Text dimColor>  ▼</Text>}
-      <Box marginTop={1}>
+      <Box minHeight={1}>
+        {canScrollDown && <Text dimColor>  ▼</Text>}
+      </Box>
+      <Box>
         <Text dimColor>↑↓: 移動  Enter: リンク修正  q: 終了</Text>
       </Box>
     </Box>
