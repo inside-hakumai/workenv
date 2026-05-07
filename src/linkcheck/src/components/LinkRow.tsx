@@ -7,6 +7,7 @@ interface Props {
   isSelected: boolean;
   targetWidth: number;
   sourceWidth: number;
+  flashText?: string;
 }
 
 const STATUS_CONFIG = {
@@ -26,7 +27,7 @@ const STATUS_CONFIG = {
 
 const SELECTED_BG = "#1a3a5c";
 
-export function LinkRow({ state, isSelected, targetWidth, sourceWidth }: Props) {
+export function LinkRow({ state, isSelected, targetWidth, sourceWidth, flashText }: Props) {
   const config = STATUS_CONFIG[state.status];
   const pointer = isSelected ? "❯ " : "  ";
 
@@ -46,11 +47,17 @@ export function LinkRow({ state, isSelected, targetWidth, sourceWidth }: Props) 
         <Text dimColor={!isSelected}>{shortPath(state.entry.source)}</Text>
       </Box>
       <Text> </Text>
-      <Text color={config.color}>
-        {config.icon} {config.label}
-      </Text>
-      {state.status === "conflict-symlink" && state.actualTarget && (
-        <Text dimColor> ({shortPath(state.actualTarget)})</Text>
+      {flashText ? (
+        <Text bold color="greenBright">✓ {flashText}</Text>
+      ) : (
+        <>
+          <Text color={config.color}>
+            {config.icon} {config.label}
+          </Text>
+          {state.status === "conflict-symlink" && state.actualTarget && (
+            <Text dimColor> ({shortPath(state.actualTarget)})</Text>
+          )}
+        </>
       )}
     </Box>
   );

@@ -9,6 +9,11 @@ import { ConfirmDialog, DIALOG_HEIGHT } from "./ConfirmDialog.js";
 
 type Mode = "list" | "confirm" | "fixing";
 
+interface Flash {
+  index: number;
+  text: string;
+}
+
 export function App() {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -18,7 +23,7 @@ export function App() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mode, setMode] = useState<Mode>("list");
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState<string>();
+  const [flash, setFlash] = useState<Flash | null>(null);
 
   useEffect(() => {
     checkAll(entries).then((result) => {
@@ -26,6 +31,12 @@ export function App() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(() => setFlash(null), 10_000);
+    return () => clearTimeout(timer);
+  }, [flash]);
 
   useInput(
     (_input, key) => {
@@ -43,7 +54,6 @@ export function App() {
         const selected = states[selectedIndex];
         if (selected && selected.status !== "ok") {
           setMode("confirm");
-          setMessage(undefined);
         }
       }
     },
@@ -55,25 +65,19 @@ export function App() {
     if (!selected) return;
 
     setMode("fixing");
-    setMessage("リンクを作成中...");
 
     try {
-      const backedUp = await fixLink(selected);
+      await fixLink(selected);
       const updated = await checkLink(selected.entry);
       setStates((prev) => {
         const next = [...prev];
         next[selectedIndex] = updated;
         return next;
       });
-      if (backedUp) {
-        setMessage(`リンクを作成しました (バックアップ: ${backedUp})`);
-      } else {
-        setMessage("リンクを作成しました");
-      }
+      setFlash({ index: selectedIndex, text: "リンクを作成しました" });
     } catch (err) {
-      setMessage(
-        `エラー: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      setFlash({ index: selectedIndex, text: `エラー: ${msg}` });
     } finally {
       setMode("list");
     }
@@ -91,12 +95,11 @@ export function App() {
 
   return (
     <Box height={terminalRows} flexDirection="column">
-      <LinkList states={states} selectedIndex={selectedIndex} />
-      {message && (
-        <Box>
-          <Text color="green">{message}</Text>
-        </Box>
-      )}
+      <LinkList
+        states={states}
+        selectedIndex={selectedIndex}
+        flash={flash}
+      />
       {mode === "confirm" && states[selectedIndex] && (
         <Box
           position="absolute"

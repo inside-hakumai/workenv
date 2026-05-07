@@ -8,12 +8,18 @@ import { LinkRow } from "./LinkRow.js";
 const CHROME_LINES = 6;
 const MIN_VISIBLE = 5;
 
+interface Flash {
+  index: number;
+  text: string;
+}
+
 interface Props {
   states: LinkState[];
   selectedIndex: number;
+  flash?: Flash | null;
 }
 
-export function LinkList({ states, selectedIndex }: Props) {
+export function LinkList({ states, selectedIndex, flash }: Props) {
   const { stdout } = useStdout();
   const terminalRows = stdout.rows ?? 24;
   const visibleCount = Math.max(MIN_VISIBLE, terminalRows - CHROME_LINES);
@@ -75,15 +81,19 @@ export function LinkList({ states, selectedIndex }: Props) {
       <Box minHeight={1}>
         {canScrollUp && <Text dimColor>  ▲</Text> }
       </Box>
-      {visibleStates.map((state, i) => (
-        <LinkRow
-          key={state.entry.target}
-          state={state}
-          isSelected={scrollOffset + i === selectedIndex}
-          targetWidth={targetWidth}
-          sourceWidth={sourceWidth}
-        />
-      ))}
+      {visibleStates.map((state, i) => {
+        const absIndex = scrollOffset + i;
+        return (
+          <LinkRow
+            key={state.entry.target}
+            state={state}
+            isSelected={absIndex === selectedIndex}
+            targetWidth={targetWidth}
+            sourceWidth={sourceWidth}
+            flashText={flash?.index === absIndex ? flash.text : undefined}
+          />
+        );
+      })}
       <Box minHeight={1}>
         {canScrollDown && <Text dimColor>  ▼</Text>}
       </Box>
