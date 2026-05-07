@@ -12,6 +12,11 @@
         "name": "harness-dev",
         "description": "harness-dev plugin",
         "source": "./plugins/harness-dev"
+      },
+      {
+        "name": "pr-review",
+        "description": "PR review and review-resolution skills with GitHub MCP server",
+        "source": "./plugins/pr-review"
       }
     ]
   }
