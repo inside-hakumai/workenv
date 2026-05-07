@@ -24,25 +24,28 @@ const STATUS_CONFIG = {
   },
 } as const;
 
+const SELECTED_BG = "#1a3a5c";
+
 export function LinkRow({ state, isSelected, targetWidth, sourceWidth }: Props) {
   const config = STATUS_CONFIG[state.status];
-  const pointer = isSelected ? "❯" : " ";
+  const pointer = isSelected ? "❯ " : "  ";
 
   return (
-    <Box>
-      <Text color={isSelected ? "blue" : undefined} bold={isSelected}>
-        {pointer}{" "}
-      </Text>
+    <Box
+      width="100%"
+      backgroundColor={isSelected ? SELECTED_BG : undefined}
+    >
+      <Text bold={isSelected}>{pointer}</Text>
       <Box width={targetWidth}>
-        <Text dimColor={state.status === "ok"}>
+        <Text dimColor={!isSelected && state.status === "ok"}>
           {shortPath(state.entry.target)}
         </Text>
       </Box>
-      <Text dimColor> </Text>
+      <Text> </Text>
       <Box width={sourceWidth}>
-        <Text dimColor>{shortPath(state.entry.source)}</Text>
+        <Text dimColor={!isSelected}>{shortPath(state.entry.source)}</Text>
       </Box>
-      <Text dimColor> </Text>
+      <Text> </Text>
       <Text color={config.color}>
         {config.icon} {config.label}
       </Text>
