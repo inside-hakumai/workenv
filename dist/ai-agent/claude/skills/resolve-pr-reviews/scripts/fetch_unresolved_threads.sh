@@ -8,6 +8,8 @@ OWNER=$1
 REPO=$2
 PR_NUMBER=$3
 
+# クエリ中の $owner などは GraphQL の変数なので、シェルに展開させない
+# shellcheck disable=SC2016
 gh api graphql -f query='
 query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
