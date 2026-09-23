@@ -791,6 +791,10 @@ def to_raw(block: dict, prose: str) -> str:
     return "\n".join(out) + block["close_sep"] + block["close"]
 
 
+WRAP_KEYS = ("prefix", "open", "close", "close_sep", "inner_prefix", "opener_alone", "closer_alone", "closer_line",
+             "lead", "trail")
+
+
 def raw_original(text: str, block: dict) -> str:
     return text[block["start"]:block["end"]]
 
@@ -961,6 +965,7 @@ def cmd_build_review(args) -> int:
         fdir = workdir / "files" / f["id"]
         meta = load_json(fdir / "meta.json")
         text = read_text(fdir / "source")
+        starts = line_starts(text)
         blocks = load_json(fdir / "blocks.json")
         occ = load_json(fdir / "occurrences.json", {})
         cands = {}
@@ -1018,10 +1023,16 @@ def cmd_build_review(args) -> int:
                 rs = opt.pop("reasons")
                 opt["reason"] = rs[0][1] if len(rs) == 1 else "\n".join(f"【{label}】{text}" for label, text in rs)
             total += 1
+            # 画面で「実際のソースの行」として差分を出すため、校閲箇所の前後の文字列と、
+            # コメント記号などの付け方（to_raw と同じ規則）を渡す
+            ls = starts[b["line_start"] - 1]
+            le = line_end(text, starts[b["line_end"] - 1])
             out_blocks.append({
                 "id": b["id"], "key": f"{f['id']}:{b['id']}", "kind": b["kind"], "style": b.get("style", ""),
                 "flavor": b.get("flavor", ""), "line_start": b["line_start"], "line_end": b["line_end"],
                 "raw": raw_original(text, b), "original": b["prose"], "options": options,
+                "line_prefix": text[ls:b["start"]], "line_suffix": text[b["end"]:le],
+                "wrap": {k: b[k] for k in WRAP_KEYS if k in b}, "deletable": deletable(b),
                 "occurrences": occ.get(b["id"], []),
             })
         files_out.append({"id": f["id"], "path": meta["path"], "kind": meta["kind"], "text": text,

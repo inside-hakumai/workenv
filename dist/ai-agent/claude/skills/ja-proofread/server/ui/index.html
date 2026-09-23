@@ -7,32 +7,31 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="topbar-inner">
-    <h1>ja-proofread</h1>
+<header class="bar">
+  <div class="bar-inner">
+    <span class="brand">ja-proofread</span>
     <span id="phase" class="phase"></span>
     <span id="message" class="message"></span>
+    <span class="bar-spacer"></span>
+    <span id="counts" class="counts" hidden></span>
+    <span id="confirm" class="confirm" hidden>
+      <span id="confirm-text"></span>
+      <button id="confirm-yes" class="btn btn-primary" type="button">反映する</button>
+      <button id="confirm-no" class="btn btn-quiet" type="button">戻る</button>
+    </span>
+    <button id="submit" class="btn btn-primary" type="button" hidden>反映する</button>
   </div>
 </header>
-<main>
-  <section id="questions"></section>
-  <section id="scope" class="panel" hidden></section>
-  <section id="progress" class="panel" hidden></section>
-  <section id="files"></section>
-  <section id="result" class="panel" hidden></section>
-</main>
-<footer id="submitbar" class="submitbar" hidden>
-  <div class="submitbar-inner">
-    <span id="counts"></span>
-    <span class="spacer"></span>
-    <span id="confirm" hidden>
-      <span id="confirm-text"></span>
-      <button id="confirm-yes" class="primary">送信する</button>
-      <button id="confirm-no">戻る</button>
-    </span>
-    <button id="submit" class="primary">Submit</button>
-  </div>
-</footer>
+<div class="layout">
+  <nav id="toc" class="toc" aria-label="校閲箇所の一覧" hidden></nav>
+  <main class="main">
+    <section id="questions"></section>
+    <section id="result" class="panel" hidden></section>
+    <dl id="scope" class="scope" hidden></dl>
+    <section id="progress" class="panel" hidden></section>
+    <section id="files"></section>
+  </main>
+</div>
 <script src="/app.js"></script>
 </body>
 </html>

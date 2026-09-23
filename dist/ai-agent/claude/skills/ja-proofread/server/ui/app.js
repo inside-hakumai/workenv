@@ -2,22 +2,38 @@
 
 const TOKEN = new URLSearchParams(location.search).get("t") || "";
 const STORE_KEY = "jp-proofread:" + TOKEN.slice(0, 16);
-const PHASES = { resolving: "対象を特定中", generating: "候補を生成中", review: "レビュー待ち", applying: "反映中", done: "完了", failed: "失敗" };
+const PHASES = { resolving: "対象を特定中", generating: "候補を作成中", review: "確認待ち", applying: "反映中", done: "反映済み", failed: "失敗" };
+const SOURCE_NAMES = {
+  gemini: "Gemini", yomiyasu: "yomiyasu", techwriting: "tech-writing",
+  integrated: "統合案", concise: "統合案＋簡潔化",
+};
+const SOURCE_TITLES = {
+  gemini: "japanese-natural-writing（Gemini）", yomiyasu: "yomiyasu", techwriting: "japanese-tech-writing",
+  integrated: "各案の変更をまとめた案", concise: "統合案をさらに簡潔にした案",
+};
+const KIND_LABEL = { md: "Markdown", comment: "コメント", literal: "文字列" };
+const EDIT_HINT = {
+  comment: "コメントの本文を編集します。コメント記号とインデントは自動で付けます。",
+  literal: "文字列の中身を編集します。引用符は自動で付けます。プレースホルダー（%s、{name} など）は消さないでください。",
+  md: "Markdown のまま編集します。",
+};
 const CONTEXT_LINES = 3;
 
 let review = null;
 let submitted = false;
 let lastStateJson = "";
-// decisions[key] = { mode: "adopted" | "original", source, text, occ }
+// decisions[key] = { mode: "change" | "original", text, source, occ }
+// mode が "original" でも text は残す（切り替えて戻したときに編集内容を失わないため）
 let decisions = loadDecisions();
-let excluded = new Set(loadExcluded());
-const viewTab = {};
+let excluded = new Set(loadStore().excluded || []);
 
-function loadDecisions() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}").decisions || {}; } catch { return {}; }
+function loadStore() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch { return {}; }
 }
-function loadExcluded() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}").excluded || []; } catch { return []; }
+function loadDecisions() {
+  const ds = loadStore().decisions || {};
+  for (const d of Object.values(ds)) if (d.mode === "adopted") d.mode = "change";
+  return ds;
 }
 function saveLocal() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify({ decisions, excluded: [...excluded] })); } catch { /* 保存できなくても動作は続ける */ }
@@ -41,10 +57,9 @@ function el(tag, attrs, ...children) {
     if (v === undefined || v === null || v === false) continue;
     if (k === "class") e.className = v;
     else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
-    else if (k === "text") e.textContent = v;
     else e.setAttribute(k, v === true ? "" : v);
   }
-  for (const c of children.flat()) {
+  for (const c of children.flat(Infinity)) {
     if (c === null || c === undefined || c === false) continue;
     e.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
@@ -52,24 +67,35 @@ function el(tag, attrs, ...children) {
 }
 
 function fill(node, ...children) {
-  node.replaceChildren(...children.flat().filter((c) => c !== null && c !== undefined && c !== false));
+  node.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
 }
 
-// ------------------------------------------------------------ 差分（文字単位の LCS）
+const $ = (id) => document.getElementById(id);
 
-function diff(a, b) {
-  const A = Array.from(a), B = Array.from(b);
+function splitPath(p) {
+  const i = p.lastIndexOf("/");
+  return i < 0 ? ["", p] : [p.slice(0, i + 1), p.slice(i + 1)];
+}
+
+// ------------------------------------------------------------ 差分
+
+// 配列どうしの LCS 差分。[op, items[]] の列を返す（op は "=", "-", "+"）。
+function diffSeq(A, B) {
   let p = 0;
   while (p < A.length && p < B.length && A[p] === B[p]) p++;
   let s = 0;
   while (s < A.length - p && s < B.length - p && A[A.length - 1 - s] === B[B.length - 1 - s]) s++;
   const a2 = A.slice(p, A.length - s), b2 = B.slice(p, B.length - s);
   const ops = [];
-  if (p) ops.push(["=", A.slice(0, p).join("")]);
+  const push = (op, x) => {
+    const last = ops[ops.length - 1];
+    if (last && last[0] === op) last[1].push(x); else ops.push([op, [x]]);
+  };
+  for (let k = 0; k < p; k++) push("=", A[k]);
   const n = a2.length, m = b2.length;
   if (n * m > 4_000_000) {
-    if (n) ops.push(["-", a2.join("")]);
-    if (m) ops.push(["+", b2.join("")]);
+    a2.forEach((x) => push("-", x));
+    b2.forEach((x) => push("+", x));
   } else if (n || m) {
     const w = m + 1;
     const dp = new Uint32Array((n + 1) * w);
@@ -79,10 +105,6 @@ function diff(a, b) {
       }
     }
     let i = 0, j = 0;
-    const push = (op, ch) => {
-      const last = ops[ops.length - 1];
-      if (last && last[0] === op) last[1] += ch; else ops.push([op, ch]);
-    };
     while (i < n && j < m) {
       if (a2[i] === b2[j]) { push("=", a2[i]); i++; j++; }
       else if (dp[(i + 1) * w + j] >= dp[i * w + j + 1]) { push("-", a2[i]); i++; }
@@ -91,24 +113,109 @@ function diff(a, b) {
     while (i < n) push("-", a2[i++]);
     while (j < m) push("+", b2[j++]);
   }
-  if (s) {
-    const last = ops[ops.length - 1];
-    const tail = A.slice(A.length - s).join("");
-    if (last && last[0] === "=") last[1] += tail; else ops.push(["=", tail]);
-  }
+  for (let k = A.length - s; k < A.length; k++) push("=", A[k]);
   return ops;
 }
 
-function renderDiff(a, b) {
-  const box = el("div", { class: "diff" });
-  if (a === b) {
-    box.append(el("span", { class: "muted" }, "（原文と同じ）"));
-    return box;
+// 文字単位の差分を、語句の単位の置き換えにまとめる。
+// 変更どうしの間にある2文字以下の共通部分は、前後の変更に含める。
+function wordSegments(a, b) {
+  const items = [];
+  for (const [op, xs] of diffSeq(Array.from(a), Array.from(b))) {
+    const t = xs.join("");
+    let last = items[items.length - 1];
+    if (op === "=") { items.push({ eq: t }); continue; }
+    if (!last || last.eq !== undefined) { last = { del: "", ins: "" }; items.push(last); }
+    if (op === "-") last.del += t; else last.ins += t;
   }
-  for (const [op, t] of diff(a, b)) {
-    box.append(op === "=" ? document.createTextNode(t) : el(op === "-" ? "del" : "ins", {}, t));
+  for (let merged = true; merged;) {
+    merged = false;
+    for (let k = 1; k < items.length - 1; k++) {
+      const [p, e, n] = [items[k - 1], items[k], items[k + 1]];
+      if (e.eq !== undefined && p.eq === undefined && n.eq === undefined && Array.from(e.eq).length <= 2 && !e.eq.includes("\n")) {
+        items.splice(k - 1, 3, { del: p.del + e.eq + n.del, ins: p.ins + e.eq + n.ins });
+        merged = true;
+        break;
+      }
+    }
   }
-  return box;
+  return items;
+}
+
+function charStat(a, b) {
+  let del = 0, ins = 0;
+  for (const [op, xs] of diffSeq(Array.from(a), Array.from(b))) {
+    if (op === "-") del += xs.filter((c) => c !== "\n").length;
+    if (op === "+") ins += xs.filter((c) => c !== "\n").length;
+  }
+  return { del, ins };
+}
+
+// 校閲後の本文を、ソースに書き戻す形にする（jp.py の to_raw と同じ規則）。
+function toRaw(b, prose) {
+  const w = b.wrap || {};
+  if (b.kind === "md") return prose;
+  if (b.kind === "literal") return (w.lead || "") + prose + (w.trail || "");
+  const line = (p, l) => (l ? p + l : p.trimEnd());
+  const lines = prose.split("\n");
+  if (b.style === "line") return lines.map((l) => line(w.prefix, l)).join("\n");
+  if (b.style === "trailing") return w.prefix + prose;
+  if (b.style === "block1") return w.open + prose + w.close;
+  const out = [];
+  if (w.opener_alone) {
+    out.push(w.open, ...lines.map((l) => line(w.inner_prefix, l)));
+  } else {
+    out.push(w.open + lines[0], ...lines.slice(1).map((l) => line(w.inner_prefix, l)));
+  }
+  if (w.closer_alone) return [...out, w.closer_line].join("\n");
+  return out.join("\n") + w.close_sep + w.close;
+}
+
+function oldSourceLines(b) {
+  return (b.line_prefix + b.raw + b.line_suffix).split("\n");
+}
+
+function newSourceLines(b, prose) {
+  if (!prose.trim() && b.deletable && b.original.trim()) return [];
+  return (b.line_prefix + toRaw(b, prose) + b.line_suffix).split("\n");
+}
+
+const row = (cls, n, sign, content) => el("div", { class: "row " + cls },
+  el("span", { class: "num" }, n ?? ""), el("span", { class: "sign" }, sign), el("span", { class: "tx" }, content));
+
+// 校閲箇所の行を、実際のソースの形で unified diff として描く。
+function renderDiffRows(b, prose) {
+  const oldLines = oldSourceLines(b);
+  const newLines = newSourceLines(b, prose);
+  const rows = el("div", { class: "diff-rows code" });
+  if (prose === b.original) {
+    rows.append(row("ctx note-row", null, "", "（原文と同じです）"));
+    return rows;
+  }
+  let num = b.line_start;
+  const ops = diffSeq(oldLines, newLines);
+  for (let k = 0; k < ops.length; k++) {
+    const [op, xs] = ops[k];
+    if (op === "=") { xs.forEach((l) => rows.append(row("ctx", num++, "", l))); continue; }
+    // 連続する削除と追加をまとめ、行の中で変わった語句を強調する
+    let dels = [], adds = [];
+    if (op === "-") { dels = xs; if (ops[k + 1]?.[0] === "+") adds = ops[++k][1]; } else adds = xs;
+    const delFrag = [[]], addFrag = [[]];
+    const put = (frags, text, mark) => text.split("\n").forEach((part, i) => {
+      if (i > 0) frags.push([]);
+      if (part) frags[frags.length - 1].push(mark ? el(mark, {}, part) : document.createTextNode(part));
+    });
+    const both = dels.length && adds.length;
+    for (const it of wordSegments(dels.join("\n"), adds.join("\n"))) {
+      if (it.eq !== undefined) { put(delFrag, it.eq); put(addFrag, it.eq); continue; }
+      put(delFrag, it.del, both ? "del" : null);
+      put(addFrag, it.ins, both ? "ins" : null);
+    }
+    if (dels.length) delFrag.forEach((f) => rows.append(row("del", num++, "−", f)));
+    if (adds.length) addFrag.forEach((f) => rows.append(row("ins", null, "+", f)));
+  }
+  if (!newLines.length) rows.append(row("ins note-row", null, "", "（この行を削除します）"));
+  return rows;
 }
 
 // ------------------------------------------------------------ 状態の表示
@@ -117,41 +224,40 @@ async function poll() {
   try {
     const { status, data } = await api("/api/state");
     if (status !== 200) {
-      setMessage("サーバーに接続できません（URL のトークンを確認してください）", true);
+      setMessage("サーバーに接続できません。URL の t= の値が正しいか確認してください", true);
       return;
     }
     submitted = data.submitted;
-    const json = JSON.stringify(data);
-    if (json !== lastStateJson) {
-      lastStateJson = json;
-      renderState(data);
-    }
     if (data.review_ready && !review) {
       const r = await api("/api/review");
       if (r.status === 200) {
         review = r.data;
         renderReview();
-        renderState(data);
+        lastStateJson = "";
       }
     }
-    updateCounts();
+    const json = JSON.stringify(data);
+    if (json !== lastStateJson) {
+      lastStateJson = json;
+      renderState(data);
+    }
   } catch (e) {
-    setMessage("サーバーとの通信が途切れました: " + e.message, true);
+    setMessage("サーバーとの通信が切れました（" + e.message + "）", true);
   } finally {
     setTimeout(poll, 2000);
   }
 }
 
 function setMessage(text, isErr) {
-  const m = document.getElementById("message");
+  const m = $("message");
   m.textContent = text;
   m.classList.toggle("err", !!isErr);
 }
 
 function renderState(data) {
   const st = data.state || {};
-  document.getElementById("phase").textContent = PHASES[st.phase] || st.phase || "";
-  setMessage(st.message || "");
+  $("phase").textContent = PHASES[st.phase] || st.phase || "";
+  setMessage(st.phase === "review" && review ? "" : st.message || "");
   renderQuestions(st.questions || [], new Set(data.answered || []));
   renderScope(st);
   renderProgress(st);
@@ -159,142 +265,174 @@ function renderState(data) {
 }
 
 function renderQuestions(questions, answered) {
-  const box = document.getElementById("questions");
+  const box = $("questions");
   const open = questions.filter((q) => q.status === "open" && !answered.has(q.id));
-  const shown = new Set([...box.querySelectorAll("[data-qid]")].map((n) => n.dataset.qid));
   for (const node of box.querySelectorAll("[data-qid]")) {
     if (!open.some((q) => q.id === node.dataset.qid)) node.remove();
   }
+  const shown = new Set([...box.querySelectorAll("[data-qid]")].map((n) => n.dataset.qid));
   for (const q of open) {
     if (shown.has(q.id)) continue;
     const form = el("form", { class: "question", "data-qid": q.id });
-    form.append(el("h2", {}, "エージェントからの質問"), el("p", {}, q.text));
+    form.append(el("h2", {}, "確認したいことがあります"), el("p", {}, q.text));
     for (const c of q.choices || []) {
-      form.append(el("label", {}, el("input", { type: "radio", name: "choice", value: c }), " ", c));
+      form.append(el("label", {}, el("input", { type: "radio", name: "choice", value: c }), c));
     }
     if (q.allow_free !== false) {
-      form.append(el("textarea", { name: "text", placeholder: (q.choices || []).length ? "補足（任意）" : "回答" }));
+      form.append(el("textarea", { name: "text", "aria-label": "回答", placeholder: (q.choices || []).length ? "補足があれば書いてください" : "回答を書いてください" }));
     }
-    const err = el("div", { class: "err small" });
-    form.append(el("button", { class: "primary", type: "submit" }, "回答する"), err);
+    const err = el("div", { class: "err small", role: "alert" });
+    form.append(el("button", { class: "btn btn-primary", type: "submit" }, "回答を送る"), err);
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const choice = form.querySelector("input[name=choice]:checked")?.value ?? null;
       const text = form.querySelector("textarea")?.value ?? "";
-      if (!choice && !text.trim()) { err.textContent = "選択するか、回答を入力してください"; return; }
+      if (!choice && !text.trim()) { err.textContent = "選択肢を選ぶか、回答を書いてください"; return; }
       const r = await api("/api/answer", { qid: q.id, choice, text });
-      if (r.status === 200 || r.status === 409) form.replaceWith(el("div", { class: "panel muted" }, "回答を送りました。"));
-      else err.textContent = "送信に失敗しました";
+      if (r.status === 200 || r.status === 409) form.remove();
+      else err.textContent = "回答を送れませんでした（" + r.status + "）。もう一度押してください";
     });
     box.append(form);
   }
 }
 
 function renderScope(st) {
-  const box = document.getElementById("scope");
+  const box = $("scope");
   const sc = st.scope || {};
-  box.hidden = !(sc.request || sc.interpretation);
-  fill(box,
-    el("h2", {}, "校閲の範囲"),
-    sc.request ? el("div", {}, el("span", { class: "muted" }, "依頼: "), sc.request) : null,
-    sc.interpretation ? el("div", {}, el("span", { class: "muted" }, "解釈: "), sc.interpretation) : null,
-    sc.settings ? el("div", {}, el("span", { class: "muted" }, "文書の種類・文体: "), sc.settings) : null,
-    sc.glossary ? el("div", {}, el("span", { class: "muted" }, "用語集: "), sc.glossary) : null,
-  );
+  const rows = [["依頼", sc.request], ["対象", sc.interpretation], ["文書の種類と文体", sc.settings], ["用語集", sc.glossary]]
+    .filter(([, v]) => v);
+  box.hidden = !rows.length;
+  fill(box, rows.map(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]));
 }
 
 function renderProgress(st) {
-  const box = document.getElementById("progress");
+  const box = $("progress");
   const active = ["resolving", "generating", "applying", "failed"].includes(st.phase);
   box.hidden = !active && !!review;
   const rows = (st.files || []).map((f) =>
-    el("tr", {}, el("td", { class: "small" }, f.path), el("td", { class: "small" }, f.kind),
-      el("td", { class: "small" }, String(f.blocks ?? "")), el("td", { class: "small" }, f.status || ""),
-      el("td", { class: "small muted" }, f.detail || "")));
+    el("tr", {}, el("td", {}, f.path), el("td", {}, String(f.blocks ?? "")),
+      el("td", {}, f.status || ""), el("td", { class: "muted" }, f.detail || "")));
   const log = el("div", { class: "log" }, (st.log || []).slice(-30).map((l) => el("div", {}, `${l.time.slice(11)}  ${l.message}`)));
   fill(box,
-    el("h2", {}, "進行状況"),
+    el("h2", {}, "進み具合"),
     rows.length ? el("table", { class: "status" },
-      el("tr", {}, ["ファイル", "形式", "箇所", "状態", "詳細"].map((h) => el("th", { class: "small" }, h))), rows) : null,
-    log,
-  );
+      el("tr", {}, ["ファイル", "箇所", "状態", "詳細"].map((h) => el("th", {}, h))), rows) : null,
+    log);
   log.scrollTop = log.scrollHeight;
 }
 
 function renderResult(st) {
-  const box = document.getElementById("result");
+  const box = $("result");
   if (st.phase !== "done" || !st.result) { box.hidden = true; return; }
   const r = st.result;
   box.hidden = false;
   fill(box,
-    el("h2", {}, "反映結果"),
-    el("div", {}, `反映 ${r.applied} 箇所 / 他の出現箇所 ${r.occurrences} 箇所 / 原文のまま ${r.kept_original} 箇所`),
-    (r.written || []).length ? el("ul", {}, r.written.map((w) => el("li", { class: "small" }, `${w.path}（${w.edits} 箇所、バックアップ: ${w.backup}）`))) : null,
-    (r.rejected || []).length ? el("div", { class: "err" }, "検証に通らず反映しなかった箇所:",
-      el("ul", {}, r.rejected.map((x) => el("li", { class: "small" }, `${x.path} ${x.block}: ${x.errors.join("; ")}`)))) : null,
-    (r.skipped || []).length ? el("div", { class: "err" }, "反映しなかったファイル:",
-      el("ul", {}, r.skipped.map((x) => el("li", { class: "small" }, `${x.path} ${x.block || ""}: ${x.reason}`)))) : null,
-    el("p", { class: "muted small" }, "このページは閉じて構いません。"),
-  );
-  document.getElementById("submitbar").hidden = true;
+    el("h2", {}, `${r.applied} 箇所を変更しました`),
+    el("div", { class: "muted small" },
+      `原文のままにした箇所 ${r.kept_original}` + (r.occurrences ? `、同じ文字列の書き換え ${r.occurrences}` : "")),
+    (r.written || []).length ? el("ul", {}, r.written.map((w) => el("li", {}, `${w.path}（${w.edits} 箇所。元のファイル: ${w.backup}）`))) : null,
+    (r.rejected || []).length ? el("div", { class: "err" }, "次の箇所は形式の検査に通らなかったため、変更していません。",
+      el("ul", {}, r.rejected.map((x) => el("li", {}, `${x.path} ${x.block}: ${x.errors.join("; ")}`)))) : null,
+    (r.skipped || []).length ? el("div", { class: "err" }, "次のファイルは変更していません。",
+      el("ul", {}, r.skipped.map((x) => el("li", {}, `${x.path} ${x.block || ""}: ${x.reason}`)))) : null,
+    el("p", { class: "muted small" }, "このページは閉じて構いません。"));
+  $("submit").hidden = true;
+  $("confirm").hidden = true;
   lockAll();
 }
 
 // ------------------------------------------------------------ レビュー
 
+function isChanging(b) {
+  const d = decisions[b.key];
+  return !!d && d.mode === "change" && d.text !== b.original;
+}
+
 function renderReview() {
-  const box = document.getElementById("files");
-  box.replaceChildren();
-  if (!review.files.length || !review.total) {
-    box.append(el("div", { class: "panel" }, "修正の候補はありませんでした。Submit すると何も変更せずに終了します。"));
+  const box = $("files");
+  fill(box);
+  if (!review.total) {
+    box.append(el("div", { class: "panel" }, "直す候補はありませんでした。「反映する」を押すと、何も変えずに終了します。"));
   }
-  for (const f of review.files) box.append(renderFile(f));
-  document.getElementById("submitbar").hidden = false;
+  for (const f of review.files) if (f.blocks.length) box.append(renderFile(f));
+  $("submit").hidden = false;
+  $("counts").hidden = false;
+  renderToc();
+  updateCounts();
   if (submitted) lockAll();
 }
 
+function renderToc() {
+  const nav = $("toc");
+  const files = review.files.filter((f) => f.blocks.length);
+  nav.hidden = !files.length;
+  fill(nav, el("div", { class: "toc-title" }, `${files.length} ファイル`), files.map((f) => {
+    const [dir, base] = splitPath(f.path);
+    return el("div", { class: "toc-file" + (excluded.has(f.id) ? " excluded" : "") },
+      el("a", { href: "#file-" + f.id, title: f.path }, el("span", { class: "dir" }, dir), el("span", { class: "base" }, base)),
+      el("ol", {}, f.blocks.map((b) => {
+        const changing = isChanging(b);
+        const label = changing ? "変更する" : "原文のまま変更しない";
+        return el("li", {}, el("a", { href: "#hunk-" + b.key.replace(":", "-"), title: label },
+          el("span", { class: "mark" + (changing ? " change" : ""), "aria-label": label }),
+          el("span", { class: "ln" }, `L${b.line_start}`),
+          el("span", { class: "snip" }, b.original.replace(/\s+/g, " ").slice(0, 40))));
+      })));
+  }));
+}
+
 function renderFile(f) {
-  const wrap = el("div", { class: "file" + (excluded.has(f.id) ? " excluded" : ""), id: "file-" + f.id });
+  const wrap = el("article", { class: "file" + (excluded.has(f.id) ? " excluded" : ""), id: "file-" + f.id });
   const cb = el("input", { type: "checkbox", checked: excluded.has(f.id) });
   cb.addEventListener("change", () => {
     if (cb.checked) excluded.add(f.id); else excluded.delete(f.id);
     wrap.classList.toggle("excluded", cb.checked);
     saveLocal();
+    renderToc();
     updateCounts();
   });
+  const [dir, base] = splitPath(f.path);
   wrap.append(el("div", { class: "file-head" },
-    el("span", { class: "path" }, f.path),
-    el("span", { class: "badge" }, `${f.blocks.length} 箇所`),
+    el("span", { class: "path" }, el("span", { class: "dir" }, dir), el("span", { class: "base" }, base)),
+    el("span", { class: "count" }, `${f.blocks.length} 箇所`),
     el("span", { class: "spacer" }),
-    el("label", { class: "small" }, cb, " このファイルを除外")));
+    el("label", {}, cb, "このファイルは変更しない")));
   if ((f.warnings || []).length) {
     wrap.append(el("div", { class: "warnings" }, el("ul", {}, f.warnings.map((w) => el("li", {}, w)))));
   }
-  const body = el("div", { class: "file-body code" });
-  if (!f.blocks.length) {
-    body.append(el("div", { class: "muted", style: "padding:8px 12px" }, "修正の候補はありません"));
-    wrap.append(body);
-    return wrap;
-  }
+
+  // 行の範囲が重なる校閲箇所（同じ行の文字列と行末コメントなど）は1つのまとまりにする
   const lines = f.text.split("\n");
-  const visible = new Uint8Array(lines.length + 2);
-  const target = new Uint8Array(lines.length + 2);
-  const cardsAfter = {};
-  for (const b of f.blocks) {
-    for (let i = Math.max(1, b.line_start - CONTEXT_LINES); i <= Math.min(lines.length, b.line_end + CONTEXT_LINES); i++) visible[i] = 1;
-    for (let i = b.line_start; i <= b.line_end; i++) target[i] = 1;
-    (cardsAfter[b.line_end] ||= []).push(b);
+  const groups = [];
+  for (const b of [...f.blocks].sort((x, y) => x.line_start - y.line_start)) {
+    const g = groups[groups.length - 1];
+    if (g && b.line_start <= g.end) { g.blocks.push(b); g.end = Math.max(g.end, b.line_end); }
+    else groups.push({ start: b.line_start, end: b.line_end, blocks: [b] });
   }
-  const lineNode = (i) => el("div", { class: "line" + (target[i] ? " target" : "") },
-    el("span", { class: "ln" }, String(i)), el("span", { class: "tx" }, lines[i - 1].replace(/\r$/, "")));
+  const visible = new Uint8Array(lines.length + 2);
+  const groupAt = {};
+  for (const g of groups) {
+    for (let i = Math.max(1, g.start - CONTEXT_LINES); i <= Math.min(lines.length, g.end + CONTEXT_LINES); i++) visible[i] = 1;
+    groupAt[g.start] = g;
+  }
+  const lineNode = (i, cls) => row(cls || "", i, "", lines[i - 1].replace(/\r$/, ""));
+
+  const body = el("div", { class: "file-body code" });
   let i = 1;
   while (i <= lines.length) {
+    const g = groupAt[i];
+    if (g) {
+      for (let k = g.start; k <= g.end; k++) body.append(lineNode(k, "target"));
+      for (const b of g.blocks) body.append(renderBlock(b));
+      i = g.end + 1;
+      continue;
+    }
     if (!visible[i]) {
       const from = i;
-      while (i <= lines.length && !visible[i]) i++;
+      while (i <= lines.length && !visible[i] && !groupAt[i]) i++;
       const to = i - 1;
-      if (to === lines.length && lines[to - 1] === "" && from === to) continue;
-      const btn = el("button", { class: "fold" }, `⋯ ${to - from + 1} 行を表示（${from}〜${to} 行目）`);
+      if (to === lines.length && from === to && lines[to - 1] === "") continue;
+      const btn = el("button", { class: "fold", type: "button" }, `${from}〜${to} 行目を表示（${to - from + 1} 行）`);
       btn.addEventListener("click", () => {
         const frag = document.createDocumentFragment();
         for (let k = from; k <= to; k++) frag.append(lineNode(k));
@@ -304,172 +442,184 @@ function renderFile(f) {
       continue;
     }
     body.append(lineNode(i));
-    for (const b of cardsAfter[i] || []) body.append(renderCard(f, b));
     i++;
   }
   wrap.append(body);
   return wrap;
 }
 
-const KIND_LABEL = { md: "Markdown", comment: "コメント", literal: "文字列" };
+function optionName(o) {
+  return o.sources.map((s) => SOURCE_NAMES[s] || s).join("／");
+}
 
-function renderCard(f, b) {
-  const card = el("div", { class: "card", "data-key": b.key });
-  const draw = () => {
+function renderNotes(o) {
+  return el("div", { class: "notes" },
+    o.deletion ? el("div", { class: "cut" }, "この提案は文や行を削ります。") : null,
+    o.reason ? el("div", {}, el("span", { class: "k" }, "理由"), o.reason) : null,
+    (o.conflicts || []).length ? el("div", {}, el("span", { class: "k" }, "案どうしで食い違った点"), el("ul", {}, o.conflicts.map((c) => el("li", {}, c)))) : null,
+    (o.questions || []).length ? el("div", { class: "query" }, el("span", { class: "k" }, "書き手に確かめたい点"), el("ul", {}, o.questions.map((c) => el("li", {}, c)))) : null,
+    (o.warnings || []).length ? el("div", { class: "warn" }, el("ul", {}, o.warnings.map((c) => el("li", {}, c)))) : null);
+}
+
+function renderBlock(b) {
+  const box = el("section", { class: "block", id: "hunk-" + b.key.replace(":", "-"), "data-key": b.key });
+  const name = `mode-${b.key}`;
+
+  const draw = (focusEditor) => {
     const d = decisions[b.key];
-    card.classList.toggle("decided", !!d);
-    const tabKey = viewTab[b.key] || (d && d.mode === "adopted" && d.source !== "edited" ? d.source : b.options[0].key);
-    const opt = b.options.find((o) => o.key === tabKey) || b.options[0];
-    const stateBadge = !d ? el("span", { class: "badge state-none" }, "未選択")
-      : d.mode === "original" ? el("span", { class: "badge" }, "原文のまま")
-        : el("span", { class: "badge state-adopted" }, d.source === "edited" ? "編集して採用" : "採用: " + labelOf(b, d.source));
+    const changing = !!d && d.mode === "change";
+    box.classList.toggle("changing", changing);
 
-    const tabs = el("div", { class: "tabs" }, b.options.map((o) => {
-      const chosen = d && d.mode === "adopted" && d.source === o.key;
-      return el("button", {
-        class: (o.key === opt.key ? "active " : "") + (chosen ? "chosen" : ""),
-        onclick: () => { viewTab[b.key] = o.key; draw(); },
-        title: o.sources.map((s) => sourceLabel(b, s)).join(" / "),
-      }, o.sources.length > 1 ? o.sources.map((s) => sourceLabel(b, s)).join(" = ") : o.label, o.deletion ? " ✂" : "");
+    const choice = (mode, label) => el("label", { class: "choice" + ((mode === "change") === changing ? " on" : "") },
+      el("input", {
+        type: "radio", name, value: mode, checked: (mode === "change") === changing,
+        onchange: () => {
+          if (mode === "change") decisions[b.key] = { ...(d || { text: b.original, source: "original" }), mode: "change" };
+          else if (d) d.mode = "original";
+          commit(mode === "change");
+        },
+      }), label);
+
+    // 各提案を縦に並べる
+    const options = el("div", { class: "options" }, b.options.map((o) => {
+      const st = charStat(b.original, o.text);
+      const current = changing && d.text === o.text;
+      return el("div", { class: "option" + (current ? " current" : ""), "data-opt": o.key },
+        el("div", { class: "option-head" },
+          el("span", { class: "option-name", title: o.sources.map((s) => SOURCE_TITLES[s] || s).join("、") + (o.sources.length > 1 ? "（同じ内容の提案）" : "") }, optionName(o)),
+          el("span", { class: "stat", "aria-label": `${st.del} 文字削除、${st.ins} 文字追加` },
+            el("span", { class: "m" }, `−${st.del}`), " ", el("span", { class: "p" }, `+${st.ins}`)),
+          current ? el("span", { class: "current-mark" }, "編集欄と同じ内容") : null,
+          el("span", { class: "spacer" }),
+          el("button", {
+            class: "btn btn-small", type: "button",
+            onclick: () => { decisions[b.key] = { mode: "change", text: o.text, source: o.key, occ: d?.occ ?? false }; commit(true); },
+          }, "この提案をベースに変更する")),
+        renderDiffRows(b, o.text),
+        renderNotes(o));
     }));
 
-    const notes = el("div", { class: "notes" });
-    if (opt.deletion) notes.append(el("div", {}, el("span", { class: "badge del" }, "削除・削減の提案")));
-    if (opt.reason) notes.append(el("div", {}, el("span", { class: "label" }, "理由"), opt.reason));
-    if ((opt.conflicts || []).length) notes.append(el("div", {}, el("span", { class: "label" }, "衝突"), el("ul", {}, opt.conflicts.map((c) => el("li", {}, c)))));
-    if ((opt.questions || []).length) notes.append(el("div", {}, el("span", { class: "label" }, "書き手に確かめたい点"), el("ul", {}, opt.questions.map((c) => el("li", {}, c)))));
-    if ((opt.warnings || []).length) notes.append(el("div", { class: "warn" }, el("ul", {}, opt.warnings.map((c) => el("li", {}, "⚠ " + c)))));
-
-    const actions = el("div", { class: "actions" },
-      el("button", { class: "primary", onclick: () => { decisions[b.key] = { mode: "adopted", source: opt.key, text: opt.text, occ: d?.occ ?? false }; commit(); } }, "この候補を採用して編集"),
-      el("button", { onclick: () => { decisions[b.key] = { mode: "original" }; commit(); } }, "原文のまま"),
-      d ? el("button", { onclick: () => { delete decisions[b.key]; commit(); } }, "未選択に戻す") : null);
-
     let editor = null;
-    if (d && d.mode === "adopted") {
-      const ta = el("textarea", {}, "");
+    if (changing) {
+      const ta = el("textarea", { "aria-label": "変更後の内容", spellcheck: "false" });
       ta.value = d.text;
-      let live = renderDiff(b.original, d.text);
+      let preview = renderDiffRows(b, d.text);
       ta.addEventListener("input", () => {
         d.text = ta.value;
-        const base = b.options.find((o) => o.key === d.source)?.text;
-        if (d.source !== "edited" && ta.value !== base) {
-          d.baseSource = d.source;
-          d.source = "edited";
-          stateBadge.textContent = "編集して採用";
-          for (const t of card.querySelectorAll(".tabs button.chosen")) t.classList.remove("chosen");
+        const same = b.options.find((o) => o.text === ta.value);
+        d.source = same ? same.key : "edited";
+        for (const n of box.querySelectorAll(".option")) {
+          const on = !!same && n.dataset.opt === same.key;
+          n.classList.toggle("current", on);
+          n.querySelector(".current-mark")?.remove();
+          if (on) n.querySelector(".stat").after(el("span", { class: "current-mark" }, "編集欄と同じ内容"));
         }
-        const next = renderDiff(b.original, ta.value);
-        live.replaceWith(next);
-        live = next;
+        const next = renderDiffRows(b, ta.value);
+        preview.replaceWith(next);
+        preview = next;
         saveLocal();
+        renderToc();
         updateCounts();
       });
+      queueMicrotask(() => {
+        ta.style.height = Math.max(64, ta.scrollHeight + 4) + "px";
+        if (focusEditor) { ta.focus(); ta.scrollIntoView({ block: "nearest" }); }
+      });
+      let occ = null;
+      if ((b.occurrences || []).length) {
+        const cb = el("input", { type: "checkbox", checked: !!d.occ });
+        cb.addEventListener("change", () => { d.occ = cb.checked; saveLocal(); });
+        occ = el("div", { class: "occ" },
+          `同じ文字列が、ほかに ${b.occurrences.length} 箇所あります。テストの期待値などに使われていると、この箇所だけ変えるとテストが失敗します。`,
+          el("ul", {}, b.occurrences.map((o) => el("li", {}, `${o.path}:${o.line}  ${o.context}`))),
+          el("label", {}, cb, "変更後の内容で、これらも書き換える"));
+      }
       editor = el("div", { class: "editor" },
-        el("div", { class: "small muted" }, "反映する内容（直接編集できます）"), ta,
-        el("div", { class: "small muted" }, "原文との差分"), live);
-      queueMicrotask(() => { ta.style.height = Math.max(80, ta.scrollHeight + 4) + "px"; });
+        el("div", { class: "editor-title" }, "変更後の内容"),
+        el("span", { class: "k" }, EDIT_HINT[b.kind] || ""),
+        ta,
+        el("span", { class: "k" }, "ファイルに反映される差分"),
+        preview,
+        occ);
     }
 
-    let occ = null;
-    if ((b.occurrences || []).length) {
-      const cb = el("input", { type: "checkbox", checked: !!(d && d.occ), disabled: !(d && d.mode === "adopted") });
-      cb.addEventListener("change", () => { d.occ = cb.checked; saveLocal(); });
-      occ = el("div", { class: "occ" },
-        `⚠ 同じ文字列が他に ${b.occurrences.length} 箇所あります（テストの期待値などが壊れる可能性があります）`,
-        el("ul", {}, b.occurrences.map((o) => el("li", {}, `${o.path}:${o.line}  ${o.context}`))),
-        el("label", {}, cb, " 採用した内容で、これらも書き換える"));
-    }
-
-    fill(card, [
-      el("div", { class: "card-head" },
-        el("span", { class: "small muted" }, `${b.line_start === b.line_end ? b.line_start : b.line_start + "〜" + b.line_end} 行目`),
-        el("span", { class: "badge" }, KIND_LABEL[b.kind] || b.kind),
-        stateBadge),
-      tabs,
-      el("div", { class: "small muted", style: "padding:4px 10px 0" }, `原文 → ${opt.label}`),
-      renderDiff(b.original, opt.text),
-      notes,
-      actions,
-      editor,
-      occ,
-    ]);
+    fill(box,
+      el("div", { class: "block-head" },
+        el("span", { class: "kind" }, KIND_LABEL[b.kind] || b.kind),
+        el("span", {}, b.line_start === b.line_end ? `${b.line_start} 行目` : `${b.line_start}〜${b.line_end} 行目`),
+        el("span", { class: "spacer" }),
+        el("div", { class: "mode", role: "radiogroup", "aria-label": "この箇所の扱い" },
+          choice("original", "原文のまま変更しない"),
+          choice("change", "変更する"))),
+      el("div", { class: "options-title" }, `提案 ${b.options.length} 件`),
+      options,
+      editor);
     if (submitted) lockAll();
   };
-  const commit = () => { saveLocal(); draw(); updateCounts(); };
-  draw();
-  return card;
+  const commit = (focusEditor) => { saveLocal(); draw(focusEditor); renderToc(); updateCounts(); };
+  draw(false);
+  return box;
 }
 
-function sourceLabel(b, s) {
-  const map = { gemini: "japanese-natural-writing", yomiyasu: "yomiyasu", techwriting: "japanese-tech-writing", integrated: "統合案", concise: "統合案＋簡潔化" };
-  return map[s] || s;
-}
-function labelOf(b, key) {
-  const o = b.options.find((x) => x.key === key);
-  return o ? o.label : key;
-}
-
-// ------------------------------------------------------------ 送信
+// ------------------------------------------------------------ 反映
 
 function tally() {
-  let adopted = 0, original = 0, none = 0;
-  if (!review) return { adopted, original, none };
-  for (const f of review.files) {
+  let change = 0, total = 0;
+  for (const f of review?.files || []) {
     if (excluded.has(f.id)) continue;
     for (const b of f.blocks) {
-      const d = decisions[b.key];
-      if (!d) none++; else if (d.mode === "adopted") adopted++; else original++;
+      total++;
+      if (isChanging(b)) change++;
     }
   }
-  return { adopted, original, none };
+  return { change, total };
 }
 
 function updateCounts() {
   const t = tally();
-  document.getElementById("counts").textContent =
-    `採用 ${t.adopted} / 原文のまま ${t.original} / 未選択 ${t.none}` + (excluded.size ? ` / 除外ファイル ${excluded.size}` : "");
+  $("counts").textContent = `${t.total} 箇所中 ${t.change} 箇所を変更`;
 }
 
 function lockAll() {
   for (const n of document.querySelectorAll("#files button, #files input, #files textarea")) {
     if (!n.classList.contains("fold")) n.disabled = true;
   }
-  document.getElementById("submit").disabled = true;
+  $("submit").disabled = true;
 }
 
-document.getElementById("submit").addEventListener("click", () => {
+$("submit").addEventListener("click", () => {
   const t = tally();
-  document.getElementById("confirm-text").textContent =
-    `採用 ${t.adopted} 箇所を反映します。` + (t.none ? `未選択の ${t.none} 箇所は原文のままにします。` : "");
-  document.getElementById("confirm").hidden = false;
-  document.getElementById("submit").hidden = true;
+  $("confirm-text").textContent = `${t.change} 箇所を変更し、残りの ${t.total - t.change} 箇所は原文のままにします。`;
+  $("confirm").hidden = false;
+  $("submit").hidden = true;
+  $("confirm-yes").focus();
 });
-document.getElementById("confirm-no").addEventListener("click", () => {
-  document.getElementById("confirm").hidden = true;
-  document.getElementById("submit").hidden = false;
+$("confirm-no").addEventListener("click", () => {
+  $("confirm").hidden = true;
+  $("submit").hidden = false;
+  $("submit").focus();
 });
-document.getElementById("confirm-yes").addEventListener("click", async () => {
+$("confirm-yes").addEventListener("click", async () => {
   const blocks = {};
   for (const f of review.files) {
     if (excluded.has(f.id)) continue;
     for (const b of f.blocks) {
       const d = decisions[b.key];
-      if (d && d.mode === "adopted") blocks[b.key] = { text: d.text, source: d.source, apply_occurrences: !!d.occ };
+      if (isChanging(b)) blocks[b.key] = { text: d.text, source: d.source, apply_occurrences: !!d.occ };
     }
   }
-  document.getElementById("confirm-yes").disabled = true;
+  $("confirm-yes").disabled = true;
   const r = await api("/api/submit", { blocks, excluded_files: [...excluded] });
-  document.getElementById("confirm").hidden = true;
+  $("confirm").hidden = true;
+  $("confirm-yes").disabled = false;
   if (r.status === 200 || r.status === 409) {
     submitted = true;
     lockAll();
-    document.getElementById("submit").hidden = false;
-    document.getElementById("counts").textContent = "送信しました。エージェントが反映するのを待っています…";
+    $("submit").hidden = false;
+    $("submit").textContent = "反映を待っています";
   } else {
-    document.getElementById("confirm-yes").disabled = false;
-    document.getElementById("submit").hidden = false;
-    setMessage("送信に失敗しました（" + r.status + "）", true);
+    $("submit").hidden = false;
+    setMessage("送れませんでした（" + r.status + "）。もう一度「反映する」を押してください", true);
   }
 });
 
