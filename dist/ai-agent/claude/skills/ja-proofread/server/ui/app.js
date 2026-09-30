@@ -5,11 +5,12 @@ const STORE_KEY = "jp-proofread:" + TOKEN.slice(0, 16);
 const PHASES = { resolving: "対象を特定中", generating: "候補を作成中", review: "確認待ち", applying: "反映中", done: "反映済み", failed: "失敗" };
 const SOURCE_NAMES = {
   gemini: "Gemini", yomiyasu: "yomiyasu", techwriting: "tech-writing",
-  integrated: "統合案", concise: "統合案＋簡潔化",
+  integrated: "統合案", concise: "簡潔化（表現）", trim: "簡潔化（削除・削減）",
 };
 const SOURCE_TITLES = {
   gemini: "japanese-natural-writing（Gemini）", yomiyasu: "yomiyasu", techwriting: "japanese-tech-writing",
-  integrated: "各案の変更をまとめた案", concise: "統合案をさらに簡潔にした案",
+  integrated: "各案の変更をまとめた案", concise: "統合案の表現を、情報を減らさずに短くした案",
+  trim: "読み手に不要な文や、ほかで分かる説明を削った案",
 };
 const KIND_LABEL = { md: "Markdown", comment: "コメント", literal: "文字列" };
 const EDIT_HINT = {
@@ -175,8 +176,12 @@ function oldSourceLines(b) {
   return (b.line_prefix + b.raw + b.line_suffix).split("\n");
 }
 
+// 丸ごと削除するときの見え方は jp.py の deletion_span と合わせる
 function newSourceLines(b, prose) {
-  if (!prose.trim() && b.deletable && b.original.trim()) return [];
+  if (!prose.trim() && b.deletable && b.original.trim()) {
+    if (!b.line_prefix.trim() && !b.line_suffix.trim()) return [];
+    return [b.line_prefix.replace(/[ \t]+$/, "") + b.line_suffix];
+  }
   return (b.line_prefix + toRaw(b, prose) + b.line_suffix).split("\n");
 }
 
@@ -454,7 +459,7 @@ function optionName(o) {
 
 function renderNotes(o) {
   return el("div", { class: "notes" },
-    o.deletion ? el("div", { class: "cut" }, "この提案は文や行を削ります。") : null,
+    o.deletion ? el("div", { class: "cut" }, "この提案は文や箇所を削ります。") : null,
     o.reason ? el("div", {}, el("span", { class: "k" }, "理由"), o.reason) : null,
     (o.conflicts || []).length ? el("div", {}, el("span", { class: "k" }, "案どうしで食い違った点"), el("ul", {}, o.conflicts.map((c) => el("li", {}, c)))) : null,
     (o.questions || []).length ? el("div", { class: "query" }, el("span", { class: "k" }, "書き手に確かめたい点"), el("ul", {}, o.questions.map((c) => el("li", {}, c)))) : null,
