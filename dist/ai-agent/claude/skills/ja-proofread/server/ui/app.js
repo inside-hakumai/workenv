@@ -1,8 +1,9 @@
 "use strict";
 
 const TOKEN = new URLSearchParams(location.search).get("t") || "";
-const STORE_KEY = "jp-proofread:" + TOKEN.slice(0, 16);
-const PHASES = { resolving: "対象を特定中", generating: "候補を作成中", review: "確認待ち", applying: "反映中", done: "反映済み", failed: "失敗" };
+// 判断の持ち方を変えたので、以前の形式で保存した内容とは別のキーにする
+const STORE_KEY = "jp-proofread2:" + TOKEN.slice(0, 16);
+const STEPS = [["resolving", "対象の特定"], ["generating", "候補の作成"], ["review", "確認"], ["applying", "反映"]];
 const SOURCE_NAMES = {
   gemini: "Gemini", yomiyasu: "yomiyasu", techwriting: "tech-writing",
   integrated: "統合案", concise: "統合案＋簡潔化",
@@ -11,7 +12,13 @@ const SOURCE_TITLES = {
   gemini: "japanese-natural-writing（Gemini）", yomiyasu: "yomiyasu", techwriting: "japanese-tech-writing",
   integrated: "各案の変更をまとめた案", concise: "統合案をさらに簡潔にした案",
 };
+// 提案を並べる順。各案をまとめた統合案を先に見せる
+const PRIORITY = ["integrated", "concise", "gemini", "yomiyasu", "techwriting"];
+// 候補の作成状況の列。統合案と簡潔化案は同じワーカーが作るので1列にする
+const GEN_COLUMNS = [["gemini", "Gemini"], ["yomiyasu", "yomiyasu"], ["techwriting", "tech-writing"], ["integrated", "統合案・簡潔化"]];
+const GEN_STATUS = { done: "完了", running: "作成中", retrying: "再実行中", failed: "失敗（候補なし）" };
 const KIND_LABEL = { md: "Markdown", comment: "コメント", literal: "文字列" };
+const STATE_LABEL = { todo: "未確認", keep: "原文のまま", change: "変更" };
 const EDIT_HINT = {
   comment: "コメントの本文を編集します。コメント記号とインデントは自動で付けます。",
   literal: "文字列の中身を編集します。引用符は自動で付けます。プレースホルダー（%s、{name} など）は消さないでください。",
@@ -21,19 +28,22 @@ const CONTEXT_LINES = 3;
 
 let review = null;
 let submitted = false;
+let finished = false;
 let lastStateJson = "";
-// decisions[key] = { mode: "change" | "original", text, source, occ }
-// mode が "original" でも text は残す（切り替えて戻したときに編集内容を失わないため）
-let decisions = loadDecisions();
+let lastStepIndex = 0;
+let filter = "all";
+let current = null; // 現在の校閲箇所の key
+let editing = null; // 手直しの欄を開いている校閲箇所の key
+let logOpen = true;
+let navAt = 0; // キー操作で箇所へ移った時刻。スクロールが終わるまでは、その箇所を現在の箇所とみなす
+// decisions[key] = { sel: "orig" | <提案の key>, texts: { <提案の key>: 手直しした本文 }, occ }
+// sel がない箇所は未確認。手直しは提案ごとに残すので、ほかの提案に切り替えて戻っても消えない
+let decisions = loadStore().decisions || {};
 let excluded = new Set(loadStore().excluded || []);
+const blocks = []; // 画面に出した順の { b, file, node, draw }
 
 function loadStore() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); } catch { return {}; }
-}
-function loadDecisions() {
-  const ds = loadStore().decisions || {};
-  for (const d of Object.values(ds)) if (d.mode === "adopted") d.mode = "change";
-  return ds;
 }
 function saveLocal() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify({ decisions, excluded: [...excluded] })); } catch { /* 保存できなくても動作は続ける */ }
@@ -76,6 +86,19 @@ function splitPath(p) {
   const i = p.lastIndexOf("/");
   return i < 0 ? ["", p] : [p.slice(0, i + 1), p.slice(i + 1)];
 }
+
+const svg = (w, body) => {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("width", w);
+  s.setAttribute("height", w);
+  s.setAttribute("viewBox", "0 0 16 16");
+  s.setAttribute("aria-hidden", "true");
+  s.innerHTML = body;
+  return s;
+};
+const ICON_CHECK = (w = 11) => svg(w, '<path d="M3.5 8.3 6.6 11.3 12.5 4.8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>');
+const ICON_ASK = () => svg(14, '<circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/>');
+const ICON_WARN = () => svg(14, '<path d="M8 2.2 14.3 13.3H1.7Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 6.5v3.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11.4" r=".8" fill="currentColor"/>');
 
 // ------------------------------------------------------------ 差分
 
@@ -180,42 +203,30 @@ function newSourceLines(b, prose) {
   return (b.line_prefix + toRaw(b, prose) + b.line_suffix).split("\n");
 }
 
-const row = (cls, n, sign, content) => el("div", { class: "row " + cls },
-  el("span", { class: "num" }, n ?? ""), el("span", { class: "sign" }, sign), el("span", { class: "tx" }, content));
-
-// 校閲箇所の行を、実際のソースの形で unified diff として描く。
-function renderDiffRows(b, prose) {
+// 実際のソースの行の形で、変わった語句を文の中に書き込んだ差分を描く。
+// 原文は校閲箇所の上に1回だけ出すので、提案ごとに削除行と追加行を並べない。
+function renderInlineDiff(b, prose, cls) {
+  const box = el("span", { class: cls });
+  if (prose === b.original) {
+    box.append(el("span", { class: "same" }, "（原文と同じです）"));
+    return box;
+  }
   const oldLines = oldSourceLines(b);
   const newLines = newSourceLines(b, prose);
-  const rows = el("div", { class: "diff-rows code" });
-  if (prose === b.original) {
-    rows.append(row("ctx note-row", null, "", "（原文と同じです）"));
-    return rows;
+  // 行頭の共通のインデントは、読みやすさのために除く
+  const indent = Math.min(...oldLines.filter((l) => l.trim()).map((l) => l.match(/^[ \t]*/)[0].length));
+  const strip = (ls) => ls.map((l) => l.slice(Math.min(indent, l.match(/^[ \t]*/)[0].length))).join("\n");
+  const a = strip(oldLines);
+  if (!newLines.length) {
+    box.append(el("span", { class: "d" }, a), el("span", { class: "same" }, "\n（この箇所を削除します）"));
+    return box;
   }
-  let num = b.line_start;
-  const ops = diffSeq(oldLines, newLines);
-  for (let k = 0; k < ops.length; k++) {
-    const [op, xs] = ops[k];
-    if (op === "=") { xs.forEach((l) => rows.append(row("ctx", num++, "", l))); continue; }
-    // 連続する削除と追加をまとめ、行の中で変わった語句を強調する
-    let dels = [], adds = [];
-    if (op === "-") { dels = xs; if (ops[k + 1]?.[0] === "+") adds = ops[++k][1]; } else adds = xs;
-    const delFrag = [[]], addFrag = [[]];
-    const put = (frags, text, mark) => text.split("\n").forEach((part, i) => {
-      if (i > 0) frags.push([]);
-      if (part) frags[frags.length - 1].push(mark ? el(mark, {}, part) : document.createTextNode(part));
-    });
-    const both = dels.length && adds.length;
-    for (const it of wordSegments(dels.join("\n"), adds.join("\n"))) {
-      if (it.eq !== undefined) { put(delFrag, it.eq); put(addFrag, it.eq); continue; }
-      put(delFrag, it.del, both ? "del" : null);
-      put(addFrag, it.ins, both ? "ins" : null);
-    }
-    if (dels.length) delFrag.forEach((f) => rows.append(row("del", num++, "−", f)));
-    if (adds.length) addFrag.forEach((f) => rows.append(row("ins", null, "+", f)));
+  for (const it of wordSegments(a, strip(newLines))) {
+    if (it.eq !== undefined) { box.append(it.eq); continue; }
+    if (it.del) box.append(el("del", { class: "d" }, it.del));
+    if (it.ins) box.append(el("ins", { class: "i" }, it.ins));
   }
-  if (!newLines.length) rows.append(row("ins note-row", null, "", "（この行を削除します）"));
-  return rows;
+  return box;
 }
 
 // ------------------------------------------------------------ 状態の表示
@@ -256,12 +267,33 @@ function setMessage(text, isErr) {
 
 function renderState(data) {
   const st = data.state || {};
-  $("phase").textContent = PHASES[st.phase] || st.phase || "";
-  setMessage(st.phase === "review" && review ? "" : st.message || "");
+  renderSteps(st.phase);
+  setMessage(st.phase === "review" && review ? "" : st.message || "", st.phase === "failed");
   renderQuestions(st.questions || [], new Set(data.answered || []));
   renderScope(st);
   renderProgress(st);
   renderResult(st);
+}
+
+function renderSteps(phase) {
+  const idx = phase === "done" ? STEPS.length : STEPS.findIndex(([p]) => p === phase);
+  if (idx >= 0) lastStepIndex = idx;
+  const failed = phase === "failed";
+  fill($("steps"), STEPS.map(([, label], i) => {
+    const done = i < lastStepIndex;
+    const now = i === lastStepIndex;
+    const cls = done ? "done" : now ? (failed ? "failed" : "now") : "";
+    return el("li", { class: cls, "aria-current": now && !failed ? "step" : null },
+      el("span", { class: "n" }, done ? ICON_CHECK() : failed && now ? "!" : String(i + 1)), label,
+      failed && now ? el("span", { class: "sr" }, "（失敗）") : null);
+  }));
+}
+
+function remainingText(iso) {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (!(ms > 0)) return null;
+  const min = Math.ceil(ms / 60000);
+  return min >= 60 ? `${Math.floor(min / 60)} 時間 ${min % 60} 分` : `${min} 分`;
 }
 
 function renderQuestions(questions, answered) {
@@ -270,19 +302,31 @@ function renderQuestions(questions, answered) {
   for (const node of box.querySelectorAll("[data-qid]")) {
     if (!open.some((q) => q.id === node.dataset.qid)) node.remove();
   }
-  const shown = new Set([...box.querySelectorAll("[data-qid]")].map((n) => n.dataset.qid));
+  const waitText = (q) => {
+    const rest = q.expires_at ? remainingText(q.expires_at) : null;
+    return rest ? `回答があるまで校閲は止まっています。あと ${rest}待っても回答がなければ、何も変更せずに終了します。`
+      : "回答があるまで校閲は止まっています。";
+  };
   for (const q of open) {
-    if (shown.has(q.id)) continue;
-    const form = el("form", { class: "question", "data-qid": q.id });
-    form.append(el("h2", {}, "確認したいことがあります"), el("p", {}, q.text));
-    for (const c of q.choices || []) {
-      form.append(el("label", {}, el("input", { type: "radio", name: "choice", value: c }), c));
+    const shown = box.querySelector(`[data-qid="${CSS.escape(q.id)}"]`);
+    if (shown) { shown.querySelector(".q-wait").textContent = waitText(q); continue; }
+    const form = el("form", { class: "card question", "data-qid": q.id });
+    form.append(el("h2", { class: "q-h" }, svg(20, '<circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".8" fill="currentColor"/>'), "確認したいことがあります"),
+      el("p", { class: "q-text" }, q.text));
+    if ((q.choices || []).length) {
+      form.append(el("fieldset", { class: "choices" }, el("legend", { class: "sr" }, "選択肢"),
+        q.choices.map((c) => el("label", { class: "q-choice" }, el("input", { type: "radio", name: "choice", value: c }), c))));
     }
     if (q.allow_free !== false) {
-      form.append(el("textarea", { name: "text", "aria-label": "回答", placeholder: (q.choices || []).length ? "補足があれば書いてください" : "回答を書いてください" }));
+      const id = "q-free-" + q.id;
+      const optional = (q.choices || []).length > 0;
+      form.append(el("label", { class: "free-k", for: id }, optional ? "補足" : "回答", optional ? el("span", {}, "任意") : null),
+        el("textarea", { id, name: "text", rows: "3" }));
     }
     const err = el("div", { class: "err small", role: "alert" });
-    form.append(el("button", { class: "btn btn-primary", type: "submit" }, "回答を送る"), err);
+    form.append(el("div", { class: "q-actions" },
+      el("button", { class: "btn btn-primary", type: "submit" }, "回答を送る"),
+      el("span", { class: "q-wait" }, waitText(q))), err);
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const choice = form.querySelector("input[name=choice]:checked")?.value ?? null;
@@ -297,87 +341,240 @@ function renderQuestions(questions, answered) {
 }
 
 function renderScope(st) {
-  const box = $("scope");
   const sc = st.scope || {};
   const rows = [["依頼", sc.request], ["対象", sc.interpretation], ["文書の種類と文体", sc.settings], ["用語集", sc.glossary]]
     .filter(([, v]) => v);
-  box.hidden = !rows.length;
-  fill(box, rows.map(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]));
+  const items = () => rows.map(([k, v]) => [el("dt", {}, k), el("dd", {}, v)]);
+  fill($("scope"), items());
+  fill($("side-scope"), items());
+  $("scope-card").hidden = !rows.length || !!review;
+  $("side-scope-sec").hidden = !rows.length;
+}
+
+function genCell(f, src) {
+  if (src === "techwriting" && f.kind !== "md") return el("span", { class: "st na" }, "対象外");
+  const s = (f.sources || {})[src];
+  if (s === "done") return el("span", { class: "st done" }, el("span", { class: "ic" }, ICON_CHECK(10)), GEN_STATUS.done);
+  if (GEN_STATUS[s]) return el("span", { class: "st " + s }, el("span", { class: "ic" }, s === "failed" ? "×" : ""), GEN_STATUS[s]);
+  return el("span", { class: "st wait" }, el("span", { class: "ic" }), "待機");
 }
 
 function renderProgress(st) {
   const box = $("progress");
   const active = ["resolving", "generating", "applying", "failed"].includes(st.phase);
   box.hidden = !active && !!review;
-  const rows = (st.files || []).map((f) =>
-    el("tr", {}, el("td", {}, f.path), el("td", {}, String(f.blocks ?? "")),
-      el("td", {}, f.status || ""), el("td", { class: "muted" }, f.detail || "")));
-  const log = el("div", { class: "log" }, (st.log || []).slice(-30).map((l) => el("div", {}, `${l.time.slice(11)}  ${l.message}`)));
-  fill(box,
-    el("h2", {}, "進み具合"),
-    rows.length ? el("table", { class: "status" },
-      el("tr", {}, ["ファイル", "箇所", "状態", "詳細"].map((h) => el("th", {}, h))), rows) : null,
-    log);
-  log.scrollTop = log.scrollHeight;
+  if (box.hidden) return;
+  const files = st.files || [];
+  let total = 0, finishedJobs = 0, doneJobs = 0;
+  for (const f of files) {
+    if (f.status === "skipped") continue;
+    for (const [src] of GEN_COLUMNS) {
+      if (src === "techwriting" && f.kind !== "md") continue;
+      total++;
+      const s = (f.sources || {})[src];
+      if (s === "done") doneJobs++;
+      if (s === "done" || s === "failed") finishedJobs++;
+    }
+  }
+  const gen = files.length ? el("section", { class: "card", "aria-labelledby": "gen-h" },
+    el("div", { class: "gen-head" }, el("h2", { id: "gen-h" }, "候補の作成"),
+      el("span", { class: "meta" }, `${total} 件中 ${doneJobs} 件ができました`)),
+    el("div", { class: "big-bar", role: "progressbar", "aria-label": "候補の作成", "aria-valuemin": "0", "aria-valuemax": String(total), "aria-valuenow": String(finishedJobs) },
+      el("span", { style: `width: ${total ? Math.round((finishedJobs / total) * 100) : 0}%` })),
+    el("div", { class: "tbl" }, el("table", { class: "matrix" },
+      el("thead", {}, el("tr", {}, el("th", { scope: "col" }, "ファイル"), el("th", { scope: "col" }, "箇所"),
+        GEN_COLUMNS.map(([, label]) => el("th", { scope: "col" }, label)))),
+      el("tbody", {}, files.map((f) => el("tr", {},
+        el("th", { scope: "row" }, f.path, f.detail && f.status !== "skipped" ? el("span", { class: "detail" }, f.detail) : null),
+        el("td", { class: "num" }, String(f.blocks ?? "")),
+        f.status === "skipped"
+          ? el("td", { class: "skip", colspan: String(GEN_COLUMNS.length) }, f.detail || "対象外")
+          : GEN_COLUMNS.map(([src]) => el("td", {}, genCell(f, src)))))))),
+    el("p", { class: "tbl-note" }, "Gemini は 1 ファイルずつ順に処理します。統合案・簡潔化は、そのファイルの各案がそろった時点で作り始めます。tech-writing は Markdown だけが対象です。"))
+    : null;
+  const lines = (st.log || []).slice(-30);
+  const details = el("details", { class: "card log", open: logOpen },
+    el("summary", {}, "ログ", el("span", {}, `最新 ${lines.length} 件`)),
+    el("ol", { class: "loglines" }, lines.map((l) => el("li", {}, el("time", {}, l.time.slice(11)), l.message))));
+  details.addEventListener("toggle", () => { logOpen = details.open; });
+  fill(box, gen, details);
+  const list = details.querySelector(".loglines");
+  list.scrollTop = list.scrollHeight;
 }
 
 function renderResult(st) {
   const box = $("result");
   if (st.phase !== "done" || !st.result) { box.hidden = true; return; }
   const r = st.result;
+  finished = true;
   box.hidden = false;
+  const issues = [];
+  if ((r.rejected || []).length) {
+    issues.push(el("div", { class: "res-issues" }, "次の箇所は形式の検査に通らなかったため、変更していません。",
+      el("ul", {}, r.rejected.map((x) => el("li", {}, `${x.path} ${x.block}: ${x.errors.join("; ")}`)))));
+  }
+  if ((r.skipped || []).length) {
+    issues.push(el("div", { class: "res-issues" }, "次のファイルは変更していません。",
+      el("ul", {}, r.skipped.map((x) => el("li", {}, `${x.path} ${x.block || ""}: ${x.reason}`)))));
+  }
+  const written = r.written || [];
   fill(box,
-    el("h2", {}, `${r.applied} 箇所を変更しました`),
-    el("div", { class: "muted small" },
-      `原文のままにした箇所 ${r.kept_original}` + (r.occurrences ? `、同じ文字列の書き換え ${r.occurrences}` : "")),
-    (r.written || []).length ? el("ul", {}, r.written.map((w) => el("li", {}, `${w.path}（${w.edits} 箇所。元のファイル: ${w.backup}）`))) : null,
-    (r.rejected || []).length ? el("div", { class: "err" }, "次の箇所は形式の検査に通らなかったため、変更していません。",
-      el("ul", {}, r.rejected.map((x) => el("li", {}, `${x.path} ${x.block}: ${x.errors.join("; ")}`)))) : null,
-    (r.skipped || []).length ? el("div", { class: "err" }, "次のファイルは変更していません。",
-      el("ul", {}, r.skipped.map((x) => el("li", {}, `${x.path} ${x.block || ""}: ${x.reason}`)))) : null,
+    el("h2", { class: "res-h" }, el("span", { class: "res-ic" }, ICON_CHECK(16)), `${r.applied} 箇所を変更しました`),
+    el("p", { class: "res-sub" }, `原文のまま ${r.kept_original} 箇所` + (r.occurrences ? `・同じ文字列の書き換え ${r.occurrences} 箇所` : "")),
+    written.length ? el("ul", { class: "res-list" }, written.map((w) => el("li", {},
+      el("span", { class: "res-path" }, w.path), el("span", { class: "res-n" }, `${w.edits} 箇所`),
+      el("span", { class: "res-bk" }, "元のファイル：", el("code", {}, w.backup))))) : null,
+    issues,
+    written.length ? el("ol", { class: "res-next" },
+      el("li", {}, "変更はコミットしていません。", el("code", {}, "git diff"), " で内容を確かめてください。"),
+      el("li", {}, "元に戻すときは、上の元のファイルで上書きしてください。")) : null,
     el("p", { class: "muted small" }, "このページは閉じて構いません。"));
   $("submit").hidden = true;
-  $("confirm").hidden = true;
+  $("next-todo").hidden = true;
+  $("prog").hidden = true;
+  closeConfirm();
   lockAll();
+}
+
+// ------------------------------------------------------------ 判断
+
+function sortedOptions(b) {
+  if (!b._opts) {
+    const rank = (s) => { const i = PRIORITY.indexOf(s); return i < 0 ? PRIORITY.length : i; };
+    b._opts = b.options.map((o) => {
+      const sources = [...o.sources].sort((x, y) => rank(x) - rank(y));
+      return { ...o, primary: sources[0], others: sources.slice(1) };
+    }).sort((x, y) => rank(x.primary) - rank(y.primary));
+  }
+  return b._opts;
+}
+
+function optionName(o) {
+  return SOURCE_NAMES[o.primary] || o.primary;
+}
+
+function selectedOption(b) {
+  const d = decisions[b.key];
+  if (!d || !d.sel || d.sel === "orig") return null;
+  return sortedOptions(b).find((o) => o.key === d.sel) || null;
+}
+
+function editedText(b, o) {
+  return decisions[b.key]?.texts?.[o.key];
+}
+
+// 反映する本文。原文のまま／未確認なら null
+function finalText(b) {
+  const o = selectedOption(b);
+  if (!o) return null;
+  return editedText(b, o) ?? o.text;
+}
+
+function stateOf(b) {
+  const d = decisions[b.key];
+  if (!d || !d.sel) return "todo";
+  const t = finalText(b);
+  return t !== null && t !== b.original ? "change" : "keep";
+}
+
+function chipLabel(b) {
+  const s = stateOf(b);
+  if (s !== "change") return STATE_LABEL[s];
+  const o = selectedOption(b);
+  const t = editedText(b, o);
+  return t !== undefined && t !== o.text ? `変更：${optionName(o)}を手直し` : `変更：${optionName(o)}`;
+}
+
+function tally() {
+  let change = 0, keep = 0, todo = 0, total = 0;
+  const perFile = [];
+  for (const f of review?.files || []) {
+    if (excluded.has(f.id)) continue;
+    let n = 0;
+    for (const b of f.blocks) {
+      total++;
+      const s = stateOf(b);
+      if (s === "change") { change++; n++; } else if (s === "keep") keep++; else todo++;
+    }
+    if (n) perFile.push({ path: f.path, n });
+  }
+  return { change, keep, todo, total, perFile };
+}
+
+function firstTodo() {
+  return blocks.find(({ b, file }) => !excluded.has(file.id) && stateOf(b) === "todo") || null;
+}
+
+function updateCounts() {
+  const t = tally();
+  const reviewed = t.total - t.todo;
+  $("prog-num").textContent = `${reviewed} / ${t.total}`;
+  $("prog-bar").style.width = (t.total ? Math.round((reviewed / t.total) * 100) : 0) + "%";
+  $("prog-sub").textContent = `変更 ${t.change}・原文のまま ${t.keep}・未確認 ${t.todo}`;
+  const next = firstTodo();
+  $("next-todo").hidden = !next || submitted || finished;
+  if (next) $("next-todo").href = "#" + next.node.id;
+  for (const f of review?.files || []) {
+    const node = document.querySelector(`#file-${CSS.escape(f.id)} .count`);
+    const n = f.blocks.filter((b) => stateOf(b) === "change").length;
+    if (node) node.textContent = `${f.blocks.length} 箇所` + (n ? `・変更 ${n}` : "");
+  }
+  if (!$("confirm").hidden) renderConfirm();
+}
+
+function refreshAll() {
+  saveLocal();
+  renderToc();
+  updateCounts();
 }
 
 // ------------------------------------------------------------ レビュー
 
-function isChanging(b) {
-  const d = decisions[b.key];
-  return !!d && d.mode === "change" && d.text !== b.original;
-}
-
 function renderReview() {
   const box = $("files");
   fill(box);
+  blocks.length = 0;
   if (!review.total) {
-    box.append(el("div", { class: "panel" }, "直す候補はありませんでした。「反映する」を押すと、何も変えずに終了します。"));
+    box.append(el("div", { class: "card" }, "直す候補はありませんでした。「反映する」を押すと、何も変えずに終了します。"));
   }
   for (const f of review.files) if (f.blocks.length) box.append(renderFile(f));
+  $("side").hidden = false;
+  $("prog").hidden = false;
   $("submit").hidden = false;
-  $("counts").hidden = false;
+  $("scope-card").hidden = true;
+  renderFilters();
   renderToc();
   updateCounts();
-  if (submitted) lockAll();
+  if (submitted) markSubmitted();
+}
+
+function renderFilters() {
+  const t = tally();
+  fill($("filters"), [["all", "すべて", t.total], ["todo", "未確認", t.todo], ["change", "変更", t.change]].map(([k, label, n]) =>
+    el("button", {
+      type: "button", "aria-pressed": filter === k ? "true" : "false",
+      onclick: () => { filter = k; renderToc(); },
+    }, label, " ", el("span", { class: "n" }, String(n)))));
 }
 
 function renderToc() {
-  const nav = $("toc");
-  const files = review.files.filter((f) => f.blocks.length);
-  nav.hidden = !files.length;
-  fill(nav, el("div", { class: "toc-title" }, `${files.length} ファイル`), files.map((f) => {
+  renderFilters();
+  const files = (review?.files || []).filter((f) => f.blocks.length);
+  fill($("toc"), files.map((f) => {
     const [dir, base] = splitPath(f.path);
+    const items = blocks.filter((x) => x.file === f && (filter === "all" || stateOf(x.b) === filter));
     return el("div", { class: "toc-file" + (excluded.has(f.id) ? " excluded" : "") },
-      el("a", { href: "#file-" + f.id, title: f.path }, el("span", { class: "dir" }, dir), el("span", { class: "base" }, base)),
-      el("ol", {}, f.blocks.map((b) => {
-        const changing = isChanging(b);
-        const label = changing ? "変更する" : "原文のまま変更しない";
-        return el("li", {}, el("a", { href: "#hunk-" + b.key.replace(":", "-"), title: label },
-          el("span", { class: "mark" + (changing ? " change" : ""), "aria-label": label }),
-          el("span", { class: "ln" }, `L${b.line_start}`),
-          el("span", { class: "snip" }, b.original.replace(/\s+/g, " ").slice(0, 40))));
-      })));
+      el("a", { class: "toc-path", href: "#file-" + f.id, title: f.path }, el("span", { class: "dir" }, dir), el("span", { class: "base" }, base)),
+      items.length ? el("ol", { class: "toc-list" }, items.map(({ b, node }) => {
+        const s = stateOf(b);
+        return el("li", {}, el("a", {
+          class: "toc-item" + (current === b.key ? " cur" : ""), href: "#" + node.id,
+          onclick: () => setCurrent(b.key),
+        },
+        el("span", { class: "mk " + s }), el("span", { class: "sr" }, STATE_LABEL[s]),
+        el("span", { class: "ln" }, `L${b.line_start}`),
+        el("span", { class: "snip" }, b.original.replace(/\s+/g, " ").slice(0, 40))));
+      })) : el("div", { class: "toc-empty" }, "該当する箇所はありません"));
   }));
 }
 
@@ -387,18 +584,16 @@ function renderFile(f) {
   cb.addEventListener("change", () => {
     if (cb.checked) excluded.add(f.id); else excluded.delete(f.id);
     wrap.classList.toggle("excluded", cb.checked);
-    saveLocal();
-    renderToc();
-    updateCounts();
+    refreshAll();
   });
   const [dir, base] = splitPath(f.path);
   wrap.append(el("div", { class: "file-head" },
     el("span", { class: "path" }, el("span", { class: "dir" }, dir), el("span", { class: "base" }, base)),
     el("span", { class: "count" }, `${f.blocks.length} 箇所`),
-    el("span", { class: "spacer" }),
+    el("span", { class: "sp" }),
     el("label", {}, cb, "このファイルは変更しない")));
   if ((f.warnings || []).length) {
-    wrap.append(el("div", { class: "warnings" }, el("ul", {}, f.warnings.map((w) => el("li", {}, w)))));
+    wrap.append(el("ul", { class: "warnings" }, f.warnings.map((w) => el("li", {}, w))));
   }
 
   // 行の範囲が重なる校閲箇所（同じ行の文字列と行末コメントなど）は1つのまとまりにする
@@ -415,15 +610,16 @@ function renderFile(f) {
     for (let i = Math.max(1, g.start - CONTEXT_LINES); i <= Math.min(lines.length, g.end + CONTEXT_LINES); i++) visible[i] = 1;
     groupAt[g.start] = g;
   }
-  const lineNode = (i, cls) => row(cls || "", i, "", lines[i - 1].replace(/\r$/, ""));
+  const lineNode = (i, cls) => el("div", { class: "row " + (cls || "") },
+    el("span", { class: "num" }, i), el("span", { class: "tx" }, lines[i - 1].replace(/\r$/, "")));
 
-  const body = el("div", { class: "file-body code" });
+  const body = el("div", { class: "file-body" });
   let i = 1;
   while (i <= lines.length) {
     const g = groupAt[i];
     if (g) {
       for (let k = g.start; k <= g.end; k++) body.append(lineNode(k, "target"));
-      for (const b of g.blocks) body.append(renderBlock(b));
+      for (const b of g.blocks) body.append(renderBlock(b, f));
       i = g.end + 1;
       continue;
     }
@@ -448,137 +644,231 @@ function renderFile(f) {
   return wrap;
 }
 
-function optionName(o) {
-  return o.sources.map((s) => SOURCE_NAMES[s] || s).join("／");
-}
-
 function renderNotes(o) {
-  return el("div", { class: "notes" },
-    o.deletion ? el("div", { class: "cut" }, "この提案は文や行を削ります。") : null,
-    o.reason ? el("div", {}, el("span", { class: "k" }, "理由"), o.reason) : null,
-    (o.conflicts || []).length ? el("div", {}, el("span", { class: "k" }, "案どうしで食い違った点"), el("ul", {}, o.conflicts.map((c) => el("li", {}, c)))) : null,
-    (o.questions || []).length ? el("div", { class: "query" }, el("span", { class: "k" }, "書き手に確かめたい点"), el("ul", {}, o.questions.map((c) => el("li", {}, c)))) : null,
-    (o.warnings || []).length ? el("div", { class: "warn" }, el("ul", {}, o.warnings.map((c) => el("li", {}, c)))) : null);
+  return [
+    o.deletion ? el("div", { class: "onote warn" }, "この提案は文や行を削ります。") : null,
+    o.reason ? el("div", { class: "onote" }, o.reason) : null,
+    (o.conflicts || []).length ? el("div", { class: "onote" }, el("span", { class: "k" }, "案どうしで食い違った点"),
+      el("ul", {}, o.conflicts.map((c) => el("li", {}, c)))) : null,
+    (o.questions || []).length ? el("div", { class: "ask" }, el("span", { class: "k" }, ICON_ASK(), "書き手に確かめたい点"),
+      el("ul", {}, o.questions.map((c) => el("li", {}, c)))) : null,
+    (o.warnings || []).length ? el("div", { class: "onote warn" }, el("ul", {}, o.warnings.map((c) => el("li", {}, c)))) : null,
+  ];
 }
 
-function renderBlock(b) {
-  const box = el("section", { class: "block", id: "hunk-" + b.key.replace(":", "-"), "data-key": b.key });
+function renderBlock(b, file) {
+  const box = el("section", {
+    class: "block", id: "hunk-" + b.key.replace(":", "-"), "data-key": b.key, tabindex: "-1",
+    "aria-label": `${file.path} ${b.line_start === b.line_end ? `${b.line_start} 行目` : `${b.line_start}〜${b.line_end} 行目`}`,
+  });
   const name = `mode-${b.key}`;
+  const range = b.line_start === b.line_end ? `${b.line_start} 行目` : `${b.line_start}〜${b.line_end} 行目`;
+  const occList = b.occurrences || [];
+  box.addEventListener("focusin", () => { if (current !== b.key) setCurrent(b.key); });
+  box.addEventListener("pointerdown", () => { if (current !== b.key) setCurrent(b.key); });
+
+  const pick = (key) => {
+    const d = decisions[b.key] || {};
+    decisions[b.key] = { ...d, sel: key };
+    if (editing === b.key) editing = null;
+    commit();
+  };
+  const startEdit = (o) => {
+    const d = decisions[b.key] || { sel: o.key };
+    d.texts = d.texts || {};
+    if (d.texts[o.key] === undefined) d.texts[o.key] = o.text;
+    decisions[b.key] = d;
+    editing = b.key;
+    commit(true);
+  };
 
   const draw = (focusEditor) => {
-    const d = decisions[b.key];
-    const changing = !!d && d.mode === "change";
-    box.classList.toggle("changing", changing);
+    const d = decisions[b.key] || {};
+    const sel = d.sel;
+    const chip = el("span", { class: "chip " + stateOf(b) }, chipLabel(b));
 
-    const choice = (mode, label) => el("label", { class: "choice" + ((mode === "change") === changing ? " on" : "") },
-      el("input", {
-        type: "radio", name, value: mode, checked: (mode === "change") === changing,
-        onchange: () => {
-          if (mode === "change") decisions[b.key] = { ...(d || { text: b.original, source: "original" }), mode: "change" };
-          else if (d) d.mode = "original";
-          commit(mode === "change");
-        },
-      }), label);
+    const radio = (key, checked) => el("input", { type: "radio", name, value: key, checked, onchange: () => pick(key) });
+    const orig = el("div", { class: "opt orig" + (sel === "orig" ? " on" : "") },
+      el("label", { class: "opt-row" }, radio("orig", sel === "orig"), el("kbd", {}, "0"), el("span", { class: "oname" }, "原文のまま変更しない")));
 
-    // 各提案を縦に並べる
-    const options = el("div", { class: "options" }, b.options.map((o) => {
+    const opts = sortedOptions(b).map((o, idx) => {
+      const on = sel === o.key;
       const st = charStat(b.original, o.text);
-      const current = changing && d.text === o.text;
-      return el("div", { class: "option" + (current ? " current" : ""), "data-opt": o.key },
-        el("div", { class: "option-head" },
-          el("span", { class: "option-name", title: o.sources.map((s) => SOURCE_TITLES[s] || s).join("、") + (o.sources.length > 1 ? "（同じ内容の提案）" : "") }, optionName(o)),
-          el("span", { class: "stat", "aria-label": `${st.del} 文字削除、${st.ins} 文字追加` },
-            el("span", { class: "m" }, `−${st.del}`), " ", el("span", { class: "p" }, `+${st.ins}`)),
-          current ? el("span", { class: "current-mark" }, "編集欄と同じ内容") : null,
-          el("span", { class: "spacer" }),
-          el("button", {
-            class: "btn btn-small", type: "button",
-            onclick: () => { decisions[b.key] = { mode: "change", text: o.text, source: o.key, occ: d?.occ ?? false }; commit(true); },
-          }, "この提案をベースに変更する")),
-        renderDiffRows(b, o.text),
+      const txt = editedText(b, o);
+      const edited = on && txt !== undefined && txt !== o.text;
+      const isEditing = on && editing === b.key;
+      const editedTag = edited ? el("span", { class: "edited-tag" }, "手直し済み") : null;
+      const card = el("div", { class: "opt" + (on ? " on" : ""), "data-opt": o.key },
+        el("label", { class: "opt-main" },
+          el("span", { class: "opt-row" }, radio(o.key, on),
+            el("kbd", {}, idx < 9 ? String(idx + 1) : "·"),
+            el("span", { class: "oname", title: o.sources.map((s) => SOURCE_TITLES[s] || s).join("、") }, optionName(o)),
+            o.others.length ? el("span", { class: "also" }, o.others.map((s) => SOURCE_NAMES[s] || s).join("、") + " と同じ案") : null,
+            el("span", { class: "stat", "aria-label": `${st.del} 文字削除、${st.ins} 文字追加` },
+              el("span", { class: "m" }, `−${st.del}`), " ", el("span", { class: "p" }, `+${st.ins}`)),
+            o.deletion ? el("span", { class: "cut-tag" }, "削除を含む") : null,
+            editedTag),
+          renderInlineDiff(b, o.text, "odiff")),
         renderNotes(o));
-    }));
-
-    let editor = null;
-    if (changing) {
-      const ta = el("textarea", { "aria-label": "変更後の内容", spellcheck: "false" });
-      ta.value = d.text;
-      let preview = renderDiffRows(b, d.text);
-      ta.addEventListener("input", () => {
-        d.text = ta.value;
-        const same = b.options.find((o) => o.text === ta.value);
-        d.source = same ? same.key : "edited";
-        for (const n of box.querySelectorAll(".option")) {
-          const on = !!same && n.dataset.opt === same.key;
-          n.classList.toggle("current", on);
-          n.querySelector(".current-mark")?.remove();
-          if (on) n.querySelector(".stat").after(el("span", { class: "current-mark" }, "編集欄と同じ内容"));
-        }
-        const next = renderDiffRows(b, ta.value);
-        preview.replaceWith(next);
-        preview = next;
-        saveLocal();
-        renderToc();
-        updateCounts();
-      });
-      queueMicrotask(() => {
-        ta.style.height = Math.max(64, ta.scrollHeight + 4) + "px";
-        if (focusEditor) { ta.focus(); ta.scrollIntoView({ block: "nearest" }); }
-      });
-      let occ = null;
-      if ((b.occurrences || []).length) {
-        const cb = el("input", { type: "checkbox", checked: !!d.occ });
-        cb.addEventListener("change", () => { d.occ = cb.checked; saveLocal(); });
-        occ = el("div", { class: "occ" },
-          `同じ文字列が、ほかに ${b.occurrences.length} 箇所あります。テストの期待値などに使われていると、この箇所だけ変えるとテストが失敗します。`,
-          el("ul", {}, b.occurrences.map((o) => el("li", {}, `${o.path}:${o.line}  ${o.context}`))),
-          el("label", {}, cb, "変更後の内容で、これらも書き換える"));
+      if (on && !isEditing) {
+        card.append(el("div", { class: "opt-actions" },
+          el("button", { class: "btn btn-small", type: "button", onclick: () => startEdit(o) },
+            txt !== undefined && txt !== o.text ? "手直しを続ける" : "手直しする", " ", el("kbd", {}, "E"))));
       }
-      editor = el("div", { class: "editor" },
-        el("div", { class: "editor-title" }, "変更後の内容"),
-        el("span", { class: "k" }, EDIT_HINT[b.kind] || ""),
-        ta,
-        el("span", { class: "k" }, "ファイルに反映される差分"),
-        preview,
-        occ);
+      if (isEditing) card.append(renderEditor(b, o, card, focusEditor));
+      return card;
+    });
+
+    let occ = null;
+    if (occList.length) {
+      const changing = stateOf(b) === "change";
+      const cb = el("input", { type: "checkbox", checked: !!d.occ, disabled: !changing });
+      cb.addEventListener("change", () => { decisions[b.key].occ = cb.checked; saveLocal(); });
+      occ = el("div", { class: "occ" },
+        `同じ文字列が、ほかに ${occList.length} 箇所あります。テストの期待値などに使われていると、この箇所だけ変えるとテストが失敗します。`,
+        el("ul", {}, occList.map((x) => el("li", {}, `${x.path}:${x.line}  ${x.context}`))),
+        el("label", { class: changing ? "" : "off" }, cb, "変更後の内容で、これらも書き換える"));
     }
 
     fill(box,
-      el("div", { class: "block-head" },
+      el("div", { class: "bhead" },
         el("span", { class: "kind" }, KIND_LABEL[b.kind] || b.kind),
-        el("span", {}, b.line_start === b.line_end ? `${b.line_start} 行目` : `${b.line_start}〜${b.line_end} 行目`),
-        el("span", { class: "spacer" }),
-        el("div", { class: "mode", role: "radiogroup", "aria-label": "この箇所の扱い" },
-          choice("original", "原文のまま変更しない"),
-          choice("change", "変更する"))),
-      el("div", { class: "options-title" }, `提案 ${b.options.length} 件`),
-      options,
-      editor);
-    if (submitted) lockAll();
+        el("span", {}, range),
+        chip,
+        occList.length ? el("span", { class: "occ-tag" }, ICON_WARN(), `同じ文字列がほかに ${occList.length} 箇所`) : null),
+      el("fieldset", { class: "opts" }, el("legend", { class: "sr" }, `${range}の扱い`), orig, opts),
+      occ);
+    box.classList.toggle("cur", current === b.key);
+    if (submitted || finished) lockAll();
   };
-  const commit = (focusEditor) => { saveLocal(); draw(focusEditor); renderToc(); updateCounts(); };
+
+  const renderEditor = (b, o, card, focusEditor) => {
+    const d = decisions[b.key];
+    const ta = el("textarea", { id: "ta-" + b.key, spellcheck: "false" });
+    ta.value = d.texts[o.key];
+    let preview = renderInlineDiff(b, ta.value, "preview");
+    ta.addEventListener("input", () => {
+      d.texts[o.key] = ta.value;
+      const next = renderInlineDiff(b, ta.value, "preview");
+      preview.replaceWith(next);
+      preview = next;
+      // 手直し済みの印と状態の表示だけを更新する（作り直すと入力中の欄からフォーカスが外れる）
+      const row = card.querySelector(".opt-row");
+      row.querySelector(".edited-tag")?.remove();
+      if (ta.value !== o.text) row.append(el("span", { class: "edited-tag" }, "手直し済み"));
+      const chip = box.querySelector(".chip");
+      chip.className = "chip " + stateOf(b);
+      chip.textContent = chipLabel(b);
+      const occCb = box.querySelector(".occ input");
+      if (occCb) { occCb.disabled = stateOf(b) !== "change"; occCb.parentElement.className = occCb.disabled ? "off" : ""; }
+      refreshAll();
+    });
+    queueMicrotask(() => {
+      ta.style.height = Math.max(64, ta.scrollHeight + 4) + "px";
+      if (focusEditor) { ta.focus(); ta.scrollIntoView({ block: "nearest" }); }
+    });
+    return el("div", { class: "editor" },
+      el("label", { class: "ed-k", for: ta.id }, "変更後の内容", el("span", { class: "hint" }, EDIT_HINT[b.kind] || "")),
+      ta,
+      el("div", { class: "ed-k" }, "ファイルに反映される差分"),
+      preview,
+      el("div", { class: "ed-actions" },
+        el("button", { class: "btn btn-small", type: "button", onclick: () => { editing = null; draw(false); box.focus({ preventScroll: true }); } }, "編集を閉じる"),
+        el("button", { class: "btn btn-small btn-quiet", type: "button", onclick: () => { d.texts[o.key] = o.text; commit(true); } }, "提案の内容に戻す")));
+  };
+
+  const commit = (focusEditor) => { draw(focusEditor); refreshAll(); };
+  blocks.push({ b, file, node: box, draw, pick, startEdit });
   draw(false);
   return box;
 }
 
-// ------------------------------------------------------------ 反映
+// ------------------------------------------------------------ キー操作
 
-function tally() {
-  let change = 0, total = 0;
-  for (const f of review?.files || []) {
-    if (excluded.has(f.id)) continue;
-    for (const b of f.blocks) {
-      total++;
-      if (isChanging(b)) change++;
-    }
+function setCurrent(key, scroll) {
+  const prev = current;
+  current = key;
+  for (const x of blocks) {
+    if (x.b.key === prev || x.b.key === key) x.node.classList.toggle("cur", x.b.key === key);
   }
-  return { change, total };
+  const x = blocks.find((y) => y.b.key === key);
+  if (x && scroll) {
+    navAt = Date.now();
+    x.node.focus({ preventScroll: true });
+    x.node.scrollIntoView({ block: "start" });
+  }
+  renderToc();
 }
 
-function updateCounts() {
-  const t = tally();
-  $("counts").textContent = `${t.total} 箇所中 ${t.change} 箇所を変更`;
+function inView(node) {
+  if (Date.now() - navAt < 1500 && node.classList.contains("cur")) return true;
+  const r = node.getBoundingClientRect();
+  return r.bottom > 0 && r.top < innerHeight;
 }
+
+function moveCurrent(delta) {
+  if (!blocks.length) return;
+  let idx = blocks.findIndex((x) => x.b.key === current);
+  if (idx < 0 || !inView(blocks[idx].node)) {
+    // 現在の箇所が画面の外なら、いま見えている位置から数える
+    const top = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--bar-h")) || 60;
+    const first = blocks.findIndex((x) => x.node.getBoundingClientRect().bottom > top + 40);
+    idx = first < 0 ? blocks.length - 1 : first - (delta > 0 ? 1 : 0);
+  }
+  const next = Math.max(0, Math.min(blocks.length - 1, idx + delta));
+  setCurrent(blocks[next].b.key, true);
+}
+
+function currentEntry() {
+  let x = blocks.find((y) => y.b.key === current);
+  if (!x || !inView(x.node)) {
+    x = blocks.find((y) => inView(y.node)) || x;
+    if (x) setCurrent(x.b.key);
+  }
+  return x;
+}
+
+document.addEventListener("keydown", (ev) => {
+  if (!review || submitted || finished || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing) return;
+  const t = ev.target;
+  if (t.tagName === "TEXTAREA") {
+    if (ev.key === "Escape") {
+      const x = blocks.find((y) => y.node.contains(t));
+      if (x) { ev.preventDefault(); editing = null; x.draw(false); x.node.focus({ preventScroll: true }); }
+    }
+    return;
+  }
+  if (t.tagName === "INPUT" && t.type !== "radio" && t.type !== "checkbox") return;
+  if (!$("confirm").hidden) {
+    if (ev.key === "Escape") { closeConfirm(); $("submit").focus(); }
+    return;
+  }
+  const k = ev.key.toLowerCase();
+  if (k === "j" || k === "k") { ev.preventDefault(); moveCurrent(k === "j" ? 1 : -1); return; }
+  if (k === "n") {
+    const x = firstTodo();
+    if (x) { ev.preventDefault(); setCurrent(x.b.key, true); }
+    return;
+  }
+  if (/^[0-9]$/.test(k)) {
+    const x = currentEntry();
+    if (!x || excluded.has(x.file.id)) return;
+    const n = Number(k);
+    const opts = sortedOptions(x.b);
+    if (n > opts.length) return;
+    ev.preventDefault();
+    x.pick(n === 0 ? "orig" : opts[n - 1].key);
+    x.node.focus({ preventScroll: true });
+    return;
+  }
+  if (k === "e") {
+    const x = currentEntry();
+    const o = x && selectedOption(x.b);
+    if (o && !excluded.has(x.file.id)) { ev.preventDefault(); x.startEdit(o); }
+  }
+});
+
+// ------------------------------------------------------------ 反映
 
 function lockAll() {
   for (const n of document.querySelectorAll("#files button, #files input, #files textarea")) {
@@ -587,40 +877,73 @@ function lockAll() {
   $("submit").disabled = true;
 }
 
-$("submit").addEventListener("click", () => {
-  const t = tally();
-  $("confirm-text").textContent = `${t.change} 箇所を変更し、残りの ${t.total - t.change} 箇所は原文のままにします。`;
-  $("confirm").hidden = false;
-  $("submit").hidden = true;
-  $("confirm-yes").focus();
-});
-$("confirm-no").addEventListener("click", () => {
-  $("confirm").hidden = true;
+function markSubmitted() {
+  lockAll();
   $("submit").hidden = false;
-  $("submit").focus();
-});
-$("confirm-yes").addEventListener("click", async () => {
-  const blocks = {};
-  for (const f of review.files) {
-    if (excluded.has(f.id)) continue;
-    for (const b of f.blocks) {
-      const d = decisions[b.key];
-      if (isChanging(b)) blocks[b.key] = { text: d.text, source: d.source, apply_occurrences: !!d.occ };
-    }
-  }
-  $("confirm-yes").disabled = true;
-  const r = await api("/api/submit", { blocks, excluded_files: [...excluded] });
+  $("submit").textContent = "反映を待っています";
+  $("next-todo").hidden = true;
+}
+
+function closeConfirm() {
   $("confirm").hidden = true;
-  $("confirm-yes").disabled = false;
-  if (r.status === 200 || r.status === 409) {
-    submitted = true;
-    lockAll();
-    $("submit").hidden = false;
-    $("submit").textContent = "反映を待っています";
-  } else {
-    $("submit").hidden = false;
-    setMessage("送れませんでした（" + r.status + "）。もう一度「反映する」を押してください", true);
-  }
+  $("submit").setAttribute("aria-expanded", "false");
+}
+
+function renderConfirm() {
+  const t = tally();
+  const err = el("div", { class: "err small", role: "alert" });
+  const next = firstTodo();
+  const yes = el("button", { class: "btn btn-primary", type: "button" }, t.change ? `${t.change} 箇所を反映する` : "何も変えずに終了する");
+  yes.addEventListener("click", async () => {
+    const out = {};
+    for (const f of review.files) {
+      if (excluded.has(f.id)) continue;
+      for (const b of f.blocks) {
+        if (stateOf(b) !== "change") continue;
+        const o = selectedOption(b);
+        const text = finalText(b);
+        out[b.key] = { text, source: text === o.text ? o.key : "edited", apply_occurrences: !!decisions[b.key].occ };
+      }
+    }
+    yes.disabled = true;
+    const r = await api("/api/submit", { blocks: out, excluded_files: [...excluded] });
+    if (r.status === 200 || r.status === 409) {
+      submitted = true;
+      closeConfirm();
+      markSubmitted();
+    } else {
+      yes.disabled = false;
+      err.textContent = "送れませんでした（" + r.status + "）。もう一度押してください";
+    }
+  });
+  fill($("confirm"),
+    el("h2", { id: "cf-title", class: "cf-h" }, "反映の確認"),
+    el("dl", { class: "cf-list" },
+      el("div", { class: "cf-row" }, el("dt", {}, "変更する"), el("dd", {}, el("b", {}, String(t.change)), " 箇所")),
+      t.perFile.map((x) => el("div", { class: "cf-sub" }, el("dt", {}, x.path), el("dd", {}, `${x.n} 箇所`))),
+      el("div", { class: "cf-row" }, el("dt", {}, "原文のまま"), el("dd", {}, el("b", {}, String(t.keep)), " 箇所")),
+      t.todo ? el("div", { class: "cf-row warn" }, el("dt", {}, "未確認"), el("dd", {}, el("b", {}, String(t.todo)), " 箇所（原文のままになります）")) : null,
+      excluded.size ? el("div", { class: "cf-row" }, el("dt", {}, "変更しないファイル"), el("dd", {}, String(excluded.size))) : null),
+    next ? el("p", { class: "cf-note" }, "確かめていない箇所が残っています。このまま反映すると、それらは原文のままになります。 ",
+      el("a", { href: "#" + next.node.id, onclick: () => { closeConfirm(); setCurrent(next.b.key, true); } }, "未確認の箇所へ")) : null,
+    el("div", { class: "cf-actions" }, yes,
+      el("button", { class: "btn btn-quiet", type: "button", onclick: () => { closeConfirm(); $("submit").focus(); } }, "戻る")),
+    err);
+  return yes;
+}
+
+$("submit").addEventListener("click", () => {
+  if (!$("confirm").hidden) { closeConfirm(); return; }
+  const yes = renderConfirm();
+  $("confirm").hidden = false;
+  $("submit").setAttribute("aria-expanded", "true");
+  yes.focus({ preventScroll: true });
+});
+$("next-todo").addEventListener("click", (ev) => {
+  const x = firstTodo();
+  if (!x) return;
+  ev.preventDefault();
+  setCurrent(x.b.key, true);
 });
 
 poll();

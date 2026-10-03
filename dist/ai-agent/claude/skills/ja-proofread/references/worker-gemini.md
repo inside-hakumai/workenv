@@ -35,7 +35,7 @@
    python3 <jp.py> unpack <W> <ファイルID> --source gemini --file <W>/files/<ファイルID>/cand-gemini.md --notes <W>/files/<ファイルID>/notes-gemini.json --default-reason "japanese-natural-writing（Gemini）による書き直し。意味とトーンは Claude が照合済み"
    ```
 
-3. 画面の進行状況を更新する: `python3 <jp.py> progress <W> --file-status <ファイルID>=generating:gemini完了`
+   画面の進行状況は、`unpack` が「完了」に更新する。
 
 pack.md の `<!-- jp-block ... -->` の行は HTML コメントなので、jnw.py が目印（`⟦KEEP_nnn⟧`）に置き換えて Gemini から隠し、`render` と `check` で残っているかを確かめる。目印について Gemini に追加の指示はしない。`render` が目印の欠落で失敗した場合は、SKILL.md の手順どおり修復の対象にする。
 

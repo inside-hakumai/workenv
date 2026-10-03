@@ -7,29 +7,60 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="bar">
-  <div class="bar-inner">
+<header class="top">
+  <div class="top-in">
     <span class="brand">ja-proofread</span>
-    <span id="phase" class="phase"></span>
-    <span id="message" class="message"></span>
-    <span class="bar-spacer"></span>
-    <span id="counts" class="counts" hidden></span>
-    <span id="confirm" class="confirm" hidden>
-      <span id="confirm-text"></span>
-      <button id="confirm-yes" class="btn btn-primary" type="button">反映する</button>
-      <button id="confirm-no" class="btn btn-quiet" type="button">戻る</button>
-    </span>
-    <button id="submit" class="btn btn-primary" type="button" hidden>反映する</button>
+    <ol id="steps" class="steps" aria-label="進み具合"></ol>
+    <span id="message" class="message" role="status"></span>
+    <span class="sp"></span>
+    <div id="prog" class="prog" hidden>
+      <div class="prog-line"><span id="prog-num" class="prog-num"></span> 箇所を確認</div>
+      <div class="bar"><span id="prog-bar"></span></div>
+      <div id="prog-sub" class="prog-sub"></div>
+    </div>
+    <a id="next-todo" class="btn" href="#" hidden>次の未確認へ <kbd>N</kbd></a>
+    <button id="submit" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="confirm" hidden>反映する…</button>
   </div>
+  <div id="confirm" class="confirm" role="dialog" aria-labelledby="cf-title" hidden></div>
 </header>
 <div class="layout">
-  <nav id="toc" class="toc" aria-label="校閲箇所の一覧" hidden></nav>
+  <nav id="side" class="side" aria-label="校閲箇所の一覧" hidden>
+    <section class="side-sec" id="side-scope-sec" hidden>
+      <h2 class="side-h">依頼</h2>
+      <dl id="side-scope" class="scope"></dl>
+    </section>
+    <section class="side-sec">
+      <div id="filters" class="seg" role="group" aria-label="一覧の絞り込み"></div>
+      <div class="legend">
+        <span class="lg"><span class="mk todo"></span>未確認</span>
+        <span class="lg"><span class="mk keep"></span>原文のまま</span>
+        <span class="lg"><span class="mk change"></span>変更</span>
+      </div>
+    </section>
+    <div id="toc"></div>
+    <section class="side-sec keys">
+      <h2 class="side-h">キー操作</h2>
+      <dl class="keylist">
+        <dt><kbd>J</kbd><kbd>K</kbd></dt><dd>次・前の箇所</dd>
+        <dt><kbd>0</kbd></dt><dd>原文のまま</dd>
+        <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>提案を選ぶ</dd>
+        <dt><kbd>E</kbd></dt><dd>選んだ提案を手直し</dd>
+        <dt><kbd>Esc</kbd></dt><dd>手直しの欄から出る</dd>
+        <dt><kbd>N</kbd></dt><dd>次の未確認へ</dd>
+      </dl>
+    </section>
+  </nav>
   <main class="main">
-    <section id="questions"></section>
-    <section id="result" class="panel" hidden></section>
-    <dl id="scope" class="scope" hidden></dl>
-    <section id="progress" class="panel" hidden></section>
-    <section id="files"></section>
+    <div class="main-in">
+      <section id="questions"></section>
+      <section id="result" class="card result" hidden></section>
+      <section id="scope-card" class="card" hidden>
+        <h2 class="card-h">依頼</h2>
+        <dl id="scope" class="scope"></dl>
+      </section>
+      <section id="progress" hidden></section>
+      <section id="files"></section>
+    </div>
   </main>
 </div>
 <script src="/app.js"></script>

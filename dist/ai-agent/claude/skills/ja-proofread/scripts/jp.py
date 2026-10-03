@@ -27,6 +27,8 @@ RUNS_DIRNAME = "ja-proofread-runs"
 JA_RE = re.compile(r"[぀-ヿ㐀-䶿一-鿿ｦ-ﾟ]")
 MARKER_RE = re.compile(r"^<!-- jp-block (b\d{3,})\b[^>]*-->\s*$")
 SOURCES = ("gemini", "yomiyasu", "techwriting", "integrated", "concise")
+# 画面の進行状況に出す、候補ごとの状態。done は unpack が付ける
+SOURCE_STATUSES = ("running", "retrying", "failed", "done")
 SOURCE_LABELS = {
     "gemini": "japanese-natural-writing",
     "yomiyasu": "yomiyasu",
@@ -163,6 +165,14 @@ def cmd_progress(args) -> int:
                 if f["id"] == fid:
                     f["status"] = status
                     f["detail"] = detail
+        for item in args.source_status or []:
+            fid, _, rest = item.partition("=")
+            source, _, status = rest.partition(":")
+            if source not in SOURCES or status not in SOURCE_STATUSES:
+                raise UsageError(f"--source-status は <ファイルID>=<{'|'.join(SOURCES)}>:<{'|'.join(SOURCE_STATUSES)}> の形です")
+            for f in state.get("files", []):
+                if f["id"] == fid:
+                    f.setdefault("sources", {})[source] = status
     update_state(workdir, fn)
     return emit({"status": "ok"})
 
@@ -176,6 +186,8 @@ def cmd_ask(args) -> int:
     q.setdefault("allow_free", True)
     q["status"] = "open"
     q["asked_at"] = now()
+    # 回答を待つのは合計2時間まで（SKILL.md）。画面に残り時間を出すために期限を持たせる
+    q["expires_at"] = (dt.datetime.now() + dt.timedelta(hours=2)).isoformat(timespec="seconds")
 
     def fn(state):
         qs = [x for x in state.setdefault("questions", []) if x["id"] != q["id"]]
@@ -854,6 +866,12 @@ def cmd_unpack(args) -> int:
             notes.setdefault(bid, {"reason": args.default_reason})
     dump_json(fdir / "candidates" / f"{args.source}.json", {"source": args.source, "blocks": cands, "notes": notes,
                                                             "warnings": warnings, "created_at": now()})
+
+    def fn(st):
+        for f in st.get("files", []):
+            if f["id"] == args.file_id:
+                f.setdefault("sources", {})[args.source] = "done"
+    update_state(workdir, fn)
     return emit({"status": "ok", "changed_blocks": len(cands), "warnings": warnings})
 
 
@@ -1182,6 +1200,7 @@ def main(argv=None) -> int:
     p.add_argument("--message")
     p.add_argument("--scope-file")
     p.add_argument("--file-status", action="append", help="f01=generating:詳細")
+    p.add_argument("--source-status", action="append", help="f01=gemini:running（running|retrying|failed|done）")
     p.set_defaults(fn=cmd_progress)
 
     p = sub.add_parser("ask")
