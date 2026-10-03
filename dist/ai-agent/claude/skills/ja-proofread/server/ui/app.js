@@ -6,16 +6,19 @@ const STORE_KEY = "jp-proofread2:" + TOKEN.slice(0, 16);
 const STEPS = [["resolving", "対象の特定"], ["generating", "候補の作成"], ["review", "確認"], ["applying", "反映"]];
 const SOURCE_NAMES = {
   gemini: "Gemini", yomiyasu: "yomiyasu", techwriting: "tech-writing",
-  integrated: "統合案", concise: "統合案＋簡潔化",
+  integrated: "統合案", concise: "簡潔化（表現）", trim: "簡潔化（削除・削減）",
 };
 const SOURCE_TITLES = {
   gemini: "japanese-natural-writing（Gemini）", yomiyasu: "yomiyasu", techwriting: "japanese-tech-writing",
-  integrated: "各案の変更をまとめた案", concise: "統合案をさらに簡潔にした案",
+  integrated: "各案の変更をまとめた案", concise: "統合案の表現を、情報を減らさずに短くした案",
+  trim: "読み手に不要な文や、ほかで分かる説明を削った案",
 };
 // 提案を並べる順。各案をまとめた統合案を先に見せる
-const PRIORITY = ["integrated", "concise", "gemini", "yomiyasu", "techwriting"];
-// 候補の作成状況の列。統合案と簡潔化案は同じワーカーが作るので1列にする
-const GEN_COLUMNS = [["gemini", "Gemini"], ["yomiyasu", "yomiyasu"], ["techwriting", "tech-writing"], ["integrated", "統合案・簡潔化"]];
+const PRIORITY = ["integrated", "concise", "trim", "gemini", "yomiyasu", "techwriting"];
+// 候補の作成状況の列。2つの簡潔化案は同じワーカーが作るので1列にする
+const GEN_COLUMNS = [["gemini", "Gemini"], ["yomiyasu", "yomiyasu"], ["techwriting", "tech-writing"], ["integrated", "統合案"], ["concise", "簡潔化"]];
+// 1列に複数の案をまとめる列と、その案。すべての案が unpack されたら完了にする
+const GEN_PARTS = { concise: ["concise", "trim"] };
 const GEN_STATUS = { done: "完了", running: "作成中", retrying: "再実行中", failed: "失敗（候補なし）" };
 const KIND_LABEL = { md: "Markdown", comment: "コメント", literal: "文字列" };
 const STATE_LABEL = { todo: "未確認", keep: "原文のまま", change: "変更" };
@@ -198,8 +201,12 @@ function oldSourceLines(b) {
   return (b.line_prefix + b.raw + b.line_suffix).split("\n");
 }
 
+// 丸ごと削除するときの見え方は jp.py の deletion_span と合わせる
 function newSourceLines(b, prose) {
-  if (!prose.trim() && b.deletable && b.original.trim()) return [];
+  if (!prose.trim() && b.deletable && b.original.trim()) {
+    if (!b.line_prefix.trim() && !b.line_suffix.trim()) return [];
+    return [b.line_prefix.replace(/[ \t]+$/, "") + b.line_suffix];
+  }
   return (b.line_prefix + toRaw(b, prose) + b.line_suffix).split("\n");
 }
 
@@ -351,9 +358,17 @@ function renderScope(st) {
   $("side-scope-sec").hidden = !rows.length;
 }
 
+function genStatus(f, src) {
+  const ss = (GEN_PARTS[src] || [src]).map((k) => (f.sources || {})[k]);
+  if (ss.every((s) => s === "done")) return "done";
+  for (const s of ["failed", "retrying", "running"]) if (ss.includes(s)) return s;
+  // 一部の案だけ unpack された（ワーカーはまだ動いている）
+  return ss.includes("done") ? "running" : undefined;
+}
+
 function genCell(f, src) {
   if (src === "techwriting" && f.kind !== "md") return el("span", { class: "st na" }, "対象外");
-  const s = (f.sources || {})[src];
+  const s = genStatus(f, src);
   if (s === "done") return el("span", { class: "st done" }, el("span", { class: "ic" }, ICON_CHECK(10)), GEN_STATUS.done);
   if (GEN_STATUS[s]) return el("span", { class: "st " + s }, el("span", { class: "ic" }, s === "failed" ? "×" : ""), GEN_STATUS[s]);
   return el("span", { class: "st wait" }, el("span", { class: "ic" }), "待機");
@@ -371,7 +386,7 @@ function renderProgress(st) {
     for (const [src] of GEN_COLUMNS) {
       if (src === "techwriting" && f.kind !== "md") continue;
       total++;
-      const s = (f.sources || {})[src];
+      const s = genStatus(f, src);
       if (s === "done") doneJobs++;
       if (s === "done" || s === "failed") finishedJobs++;
     }
@@ -390,7 +405,7 @@ function renderProgress(st) {
         f.status === "skipped"
           ? el("td", { class: "skip", colspan: String(GEN_COLUMNS.length) }, f.detail || "対象外")
           : GEN_COLUMNS.map(([src]) => el("td", {}, genCell(f, src)))))))),
-    el("p", { class: "tbl-note" }, "Gemini は 1 ファイルずつ順に処理します。統合案・簡潔化は、そのファイルの各案がそろった時点で作り始めます。tech-writing は Markdown だけが対象です。"))
+    el("p", { class: "tbl-note" }, "Gemini は 1 ファイルずつ順に処理します。統合案はそのファイルの各案がそろった時点で、簡潔化は統合案ができた時点で作り始めます。tech-writing は Markdown だけが対象です。"))
     : null;
   const lines = (st.log || []).slice(-30);
   const details = el("details", { class: "card log", open: logOpen },
@@ -646,7 +661,7 @@ function renderFile(f) {
 
 function renderNotes(o) {
   return [
-    o.deletion ? el("div", { class: "onote warn" }, "この提案は文や行を削ります。") : null,
+    o.deletion ? el("div", { class: "onote warn" }, "この提案は文や箇所を削ります。") : null,
     o.reason ? el("div", { class: "onote" }, o.reason) : null,
     (o.conflicts || []).length ? el("div", { class: "onote" }, el("span", { class: "k" }, "案どうしで食い違った点"),
       el("ul", {}, o.conflicts.map((c) => el("li", {}, c)))) : null,

@@ -26,7 +26,7 @@ from pathlib import Path
 RUNS_DIRNAME = "ja-proofread-runs"
 JA_RE = re.compile(r"[぀-ヿ㐀-䶿一-鿿ｦ-ﾟ]")
 MARKER_RE = re.compile(r"^<!-- jp-block (b\d{3,})\b[^>]*-->\s*$")
-SOURCES = ("gemini", "yomiyasu", "techwriting", "integrated", "concise")
+SOURCES = ("gemini", "yomiyasu", "techwriting", "integrated", "concise", "trim")
 # 画面の進行状況に出す、候補ごとの状態。done は unpack が付ける
 SOURCE_STATUSES = ("running", "retrying", "failed", "done")
 SOURCE_LABELS = {
@@ -34,8 +34,11 @@ SOURCE_LABELS = {
     "yomiyasu": "yomiyasu",
     "techwriting": "japanese-tech-writing",
     "integrated": "統合案",
-    "concise": "統合案＋簡潔化",
+    "concise": "簡潔化（表現）",
+    "trim": "簡潔化（削除・削減）",
 }
+# 簡潔化の各段階が出発点にする案。前の段階と同じ内容なら、画面に出さない
+PREV_STAGE = {"concise": ("integrated",), "trim": ("concise", "integrated")}
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "build", "dist", "target", ".gradle",
              ".idea", ".next", ".nuxt", "vendor", ".mypy_cache", ".pytest_cache", "coverage"}
 
@@ -764,12 +767,35 @@ def validate_prose(block: dict, prose: str) -> list[str]:
         if block.get("style") in ("trailing", "block1") and "\n" in prose:
             errs.append("1行のコメントに改行が含まれています")
     if not prose.strip() and block["prose"].strip() and not deletable(block):
-        errs.append("この種類の箇所は空にできません（Markdown のブロックと行コメントだけを丸ごと削除できます）")
+        errs.append("文字列は空にできません（丸ごと削除できるのは Markdown のブロックとコメントだけです）")
     return errs
 
 
 def deletable(block: dict) -> bool:
-    return block["kind"] == "md" or (block["kind"] == "comment" and block.get("style") == "line")
+    return block["kind"] in ("md", "comment")
+
+
+def deletion_span(text: str, block: dict) -> tuple[int, int]:
+    """箇所を丸ごと削除するときに消す範囲。
+
+    箇所が行の中で単独なら、行ごと（改行を含めて）消す。Markdown では続く空行も1つ消す。
+    コードの後ろにある行末コメントなどは、直前の空白からその箇所の終わりまでを消す。
+    """
+    start, end = block["start"], block["end"]
+    ls = text.rfind("\n", 0, start) + 1
+    le = line_end(text, max(start, end - 1) if end > start else start)
+    if text[ls:start].strip() == "" and text[end:le].strip() == "":
+        start, end = ls, le
+        if text[end:end + 2] == "\r\n":
+            end += 2
+        elif text[end:end + 1] == "\n":
+            end += 1
+        if block["kind"] == "md" and text[end:end + 1] == "\n":
+            end += 1
+        return start, end
+    while start > ls and text[start - 1] in " \t":
+        start -= 1
+    return start, end
 
 
 def to_raw(block: dict, prose: str) -> str:
@@ -876,13 +902,13 @@ def cmd_unpack(args) -> int:
 
 
 def cmd_view(args) -> int:
-    """統合担当に渡すため、原文と各候補をブロックごとに並べた JSON を書き出す。"""
+    """統合と簡潔化の担当に渡すため、原文と各候補をブロックごとに並べた JSON を書き出す。"""
     workdir = wd(args.workdir)
     fdir = workdir / "files" / args.file_id
     blocks = load_json(fdir / "blocks.json")
     cdir = fdir / "candidates"
     srcs = {}
-    for s in ("gemini", "yomiyasu", "techwriting"):
+    for s in ("gemini", "yomiyasu", "techwriting", "integrated"):
         p = cdir / f"{s}.json"
         if p.exists():
             srcs[s] = load_json(p)
@@ -994,7 +1020,7 @@ def cmd_build_review(args) -> int:
         file_warnings = []
         for s, data in cands.items():
             file_warnings += [f"{SOURCE_LABELS[s]}: {w}" for w in data.get("warnings", [])]
-        for s in ("gemini", "yomiyasu", "techwriting", "integrated"):
+        for s in SOURCES:
             if s == "techwriting" and not meta["md_rules"]:
                 continue
             if s not in cands:
@@ -1008,9 +1034,12 @@ def cmd_build_review(args) -> int:
                 if not data or b["id"] not in data["blocks"]:
                     continue
                 prose = data["blocks"][b["id"]]
-                integ = cands.get("integrated", {}).get("blocks", {}).get(b["id"])
-                if s == "concise" and prose == integ:
-                    continue  # 簡潔化で変わらなかった箇所は「統合案＋簡潔化」を出さない
+                if s in PREV_STAGE:
+                    # 簡潔化で前の段階から変わらなかった箇所は、その簡潔化の案を出さない
+                    prev = next((cands[p]["blocks"][b["id"]] for p in PREV_STAGE[s]
+                                 if p in cands and b["id"] in cands[p]["blocks"]), b["prose"])
+                    if prose == prev:
+                        continue
                 note = data.get("notes", {}).get(b["id"], {})
                 if isinstance(note, str):
                     note = {"reason": note}
@@ -1103,15 +1132,8 @@ def cmd_apply(args) -> int:
                 continue
             start, end = b["start"], b["end"]
             if not prose.strip():
-                # 丸ごと削除: 行末の改行と、Markdown では続く空行1つも消す
-                src_text = read_text(fdir / "source")
+                start, end = deletion_span(read_text(fdir / "source"), b)
                 new_raw = ""
-                if src_text[end:end + 2] == "\r\n":
-                    end += 2
-                elif src_text[end:end + 1] == "\n":
-                    end += 1
-                if b["kind"] == "md" and src_text[end:end + 1] == "\n":
-                    end += 1
             else:
                 new_raw = to_raw(b, prose)
             edits_by_file.setdefault(meta["abs"], []).append((start, end, new_raw, meta["sha256"], rb["key"]))

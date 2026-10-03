@@ -1,6 +1,6 @@
 ---
 name: ja-proofread
-description: 日本語で書かれた Markdown と、ソースコード上の日本語のコメント・文字列リテラルを校閲する。japanese-natural-writing（Gemini）、yomiyasu、japanese-tech-writing をそれぞれ独立に適用した候補と、それらの統合案・簡潔化案を作り、ブラウザのレビュー画面でユーザーが箇所ごとに選んだ内容だけをファイルに反映する。ユーザーが /ja-proofread で明示的に呼んだときだけ使う。
+description: 日本語で書かれた Markdown と、ソースコード上の日本語のコメント・文字列リテラルを校閲する。japanese-natural-writing（Gemini）、yomiyasu、japanese-tech-writing をそれぞれ独立に適用した候補と、それらの統合案、統合案の表現を短くした案、不要な文を削った案を作り、ブラウザのレビュー画面でユーザーが箇所ごとに選んだ内容だけをファイルに反映する。ユーザーが /ja-proofread で明示的に呼んだときだけ使う。
 disable-model-invocation: true
 context: fork
 agent: general-purpose
@@ -143,10 +143,12 @@ Agent ツールでワーカーを起動する。`subagent_type` は `general-pur
 
 gemini のワーカーは、内部で Gemini の呼び出しを3つまで並列に走らせ、照合を1ファイルずつ行う。対象が 40,000 字を超える場合は、ファイルを分けて、1つ目のワーカーが終わってから次のワーカーを起動する。ワーカーが途中で止まった場合も、返答にある「処理しなかったファイル」を次のワーカーに渡す。
 
-2段目では統合案と簡潔化案を作る（`${CLAUDE_SKILL_DIR}/references/worker-integrate.md`、yomiyasu と同じ単位）。1段目のすべてが終わるのを待たずに、まとまりごとに進める。あるまとまりのファイルについて、1段目の担当（Markdown は3つ、それ以外は gemini と yomiyasu の2つ）の完了が通知でそろった時点で、そのまとまりの統合ワーカーを起動する。
+2段目では統合案を作る（`${CLAUDE_SKILL_DIR}/references/worker-integrate.md`、yomiyasu と同じ単位）。1段目のすべてが終わるのを待たずに、まとまりごとに進める。あるまとまりのファイルについて、1段目の担当（Markdown は3つ、それ以外は gemini と yomiyasu の2つ）の完了が通知でそろった時点で、そのまとまりの統合ワーカーを起動する。
+
+3段目では、統合案を出発点に2つの簡潔化案（表現を短くした案と、文を削った案）を作る（`${CLAUDE_SKILL_DIR}/references/worker-concise.md`）。このワーカーはファイル全体を読むので、単位は「pack.md の合計がおよそ 15,000 字、かつファイル全体の合計がおよそ 60,000 字まで」とする。あるまとまりの統合ワーカーが終わった時点で、そのまとまりの簡潔化ワーカーを起動する。
 
 - 同時に動かすワーカーは、gemini を含めて 8 つまでにする。
-- ワーカーを起動する前に、担当するファイルごとに `jp.py progress <W> --source-status f01=yomiyasu:running` のように状態を更新する（`--source-status` は繰り返し指定できる）。統合案と簡潔化案のワーカーは `integrated` で指定する。完了の印は、ワーカーが `unpack` したときに付く。
+- ワーカーを起動する前に、担当するファイルごとに `jp.py progress <W> --source-status f01=yomiyasu:running` のように状態を更新する（`--source-status` は繰り返し指定できる）。統合のワーカーは `integrated`、簡潔化のワーカーは `concise` で指定する（`concise` と `trim` の両方が `unpack` されると、画面で完了になる）。完了の印は、ワーカーが `unpack` したときに付く。
 - ワーカーが失敗した場合は、`retrying` に更新してから、同じ担当で1回だけ起動し直す。それでも失敗したら `failed` に更新し、その候補なしで進める（画面に「候補がありません」と表示される）。
 
 ## 7. レビュー画面のデータを作る
