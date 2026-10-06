@@ -262,6 +262,20 @@ describe('検索ペイン', () => {
     expect((await viewOf(ui)).lines).toEqual(['今日', '09:30|today prompt|app', ' ', '昨日', '10:00|yesterday prompt|app'])
   })
 
+  test('検索欄の横のボタンは「クリア」と表示する', async ($, on) => {
+    // Given
+    // 1件のプロンプトがある
+    world(on, new Map([[HISTORY_PATH, historyLine('only prompt', 10, '/w/app')]]))
+
+    // When
+    // コマンドでペインを開く
+    const ui = await openPane($, 'desktop')
+
+    // Then
+    // 検索欄の送信の文言が「クリア」になる
+    expect((await ui.find({ key: 'query' }))?.props.submitLabel).toBe('クリア')
+  })
+
   test('Client を描けない描画先では、行をボタンとして並べる', async ($, on) => {
     // Given
     // 1件のプロンプトがある
@@ -295,7 +309,7 @@ describe('プレビュー', () => {
     ])
 
   for (const surface of SURFACES) {
-    test(`${surface}: 行を選ぶ前は、Enter で挿入される先頭のプロンプトを一番下に出す`, async ($, on) => {
+    test(`${surface}: 行を選ぶ前は、先頭のプロンプトを一番下に出す`, async ($, on) => {
       // Given
       // 2件のプロンプトがある
       world(on, twoPrompts())
@@ -305,8 +319,8 @@ describe('プレビュー', () => {
       const ui = await openPane($, surface)
 
       // Then
-      // プレビューに先頭（一番新しい）プロンプトと、Enter で挿入される旨が出る
-      expect((await viewOf(ui)).preview).toEqual(['2026-10-18 09:50 · app · 先頭（Enter で挿入）', 'newest'])
+      // プレビューに先頭（一番新しい）プロンプトと、先頭の行である旨が出る
+      expect((await viewOf(ui)).preview).toEqual(['2026-10-18 09:50 · app · 先頭の行', 'newest'])
     })
 
     test(`${surface}: マウスを乗せた行の全文を、改行を保ってプレビューに出す`, async ($, on) => {
@@ -360,20 +374,25 @@ describe('プレビュー', () => {
     expect((await viewOf(ui)).preview[1]).toBe('older')
   })
 
-  test('検索欄で Enter を押すと、マウスを乗せた行のプロンプトが入力欄に入る', async ($, on) => {
+  test('検索欄で Enter（またはクリア）を押すと、検索語を消して一覧を全件に戻す', async ($, on) => {
     // Given
-    // 古い方の行にマウスを乗せたペイン
+    // 1件に絞り込んだペイン
     const { filled } = world(on, twoPrompts())
     const ui = await openPane($, 'desktop')
-    await ui.pointer({ type: 'move', x: 10, y: 2, in: 'list' })
+    await ui.input({ key: 'query', text: 'newest', kind: 'change' })
 
     // When
     // 検索欄で Enter を押す
-    await ui.input({ key: 'query', text: '', kind: 'submit' })
+    await ui.input({ key: 'query', text: 'newest', kind: 'submit' })
 
     // Then
-    // マウスを乗せた古い方のプロンプトが入る
-    expect(filled).toEqual(['older\nsecond line'])
+    // - 検索欄が空になり、一覧が2件に戻る
+    // - 入力欄には何も入らない
+    expect({
+      query: (await ui.find({ key: 'query' }))?.props.value,
+      rows: await rowsOf(ui),
+      filled,
+    }).toEqual({ query: '', rows: ['09:50|newest|app', '09:40|older ⏎ second line|app'], filled: [] })
   })
 
   test('プレビューは本文を3行まで出し、残りの行数を添える', async ($, on) => {
@@ -484,7 +503,7 @@ describe('プレビュー', () => {
     // - プレビューは先頭のまま
     // - 入力欄には何も入らない
     expect({ preview: (await viewOf(ui)).preview[0], filled }).toEqual({
-      preview: expect.stringMatching(/先頭（Enter で挿入）$/),
+      preview: expect.stringMatching(/先頭の行$/),
       filled: [],
     })
   })

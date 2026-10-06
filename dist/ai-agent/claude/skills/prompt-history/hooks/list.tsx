@@ -23,13 +23,13 @@ export type ListProps = {
   /** The picked row's background, as this surface resolves colors. */
   pickedBackground: string
   previews: Record<string, Preview>
-  /** What Enter in the search field inserts while nothing is picked. */
+  /** What the preview shows while nothing is picked. */
   firstId: string | null
   emptyText: string | null
 }
 
 /** What the module posts to the hooks module. */
-export type ListMessage = { type: 'pick'; id: string } | { type: 'insert'; id: string }
+export type ListMessage = { type: 'insert'; id: string }
 
 type State = { page: string; picked: string | undefined }
 
@@ -54,7 +54,6 @@ const List: ClientModule<ListProps, State> = (props, surface) => {
   const pick = (id: string) => {
     if (id === picked) return
     surface.setState({ page: props.page, picked: id })
-    surface.post({ type: 'pick', id })
   }
 
   surface.onPointer((event: ClientPointerEvent) => {
@@ -117,7 +116,7 @@ const List: ClientModule<ListProps, State> = (props, surface) => {
           paddingX={1}
         >
           <Text dimColor>
-            {preview.heading} · {picked ? 'マウスの位置（クリックで挿入）' : '先頭（Enter で挿入）'}
+            {preview.heading} · {picked ? 'マウスの位置（クリックで挿入）' : '先頭の行'}
           </Text>
           {preview.lines.map(line => (
             <Text>{highlighted(Text, line)}</Text>

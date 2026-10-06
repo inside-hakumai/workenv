@@ -97,8 +97,6 @@ const monthOf = (timestamp: number) => {
 /** The merged prompts, loaded by the command; a reload starts it over. */
 let entries: PromptEntry[] | undefined
 let writes = Promise.resolve()
-/** The row the list's pointer or keys last picked: what Enter inserts. */
-let picked: string | undefined
 
 /** Reads every `.jsonl` file under `root`, one folder level down. */
 async function readRecords(
@@ -251,7 +249,6 @@ export const register: Register = on => {
   on('command.run', { command: COMMAND }, async ($, e) => {
     await update($, query, () => e.args.trim())
     await update($, offset, () => 0)
-    picked = undefined
     await load($)
     const opened = await $.ui.open({
       id: PANE,
@@ -295,7 +292,6 @@ export const register: Register = on => {
 
   on('ui.message', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const message = e.data as ListMessage
-    if (message.type === 'pick') picked = message.id
     if (message.type === 'insert') {
       const entry = entries?.find(one => one.id === message.id)
       if (entry) await insert($, entry, e.surface)
@@ -365,18 +361,10 @@ export const register: Register = on => {
       }
     }
 
-    const restart = () => {
-      picked = undefined
-
-      return update($, offset, () => 0)
-    }
+    const restart = () => update($, offset, () => 0)
     const setScope = (next: PromptHistoryScope) => () =>
       update($, scope, () => next).then(restart)
-    const turnTo = (next: number) => () => {
-      picked = undefined
-
-      return update($, offset, () => next)
-    }
+    const turnTo = (next: number) => () => update($, offset, () => next)
     const count =
       text.trim() === '' && where === 'all'
         ? `${all.length.toLocaleString()} 件`
@@ -405,13 +393,12 @@ export const register: Register = on => {
           label="検索 "
           placeholder="空白区切りで AND 検索"
           value={text}
-          submitLabel="挿入"
+          // a field always draws its submit beside it: Enter, or that button,
+          // starts the search over
+          submitLabel="クリア"
           autoFocus
           onInput={value => update($, query, () => value).then(restart)}
-          onSubmit={(_, input) => {
-            const entry = rows.find(one => one.id === picked) ?? rows[0]
-            if (entry) void insert($, entry, input.surface)
-          }}
+          onSubmit={() => update($, query, () => '').then(restart)}
         />
         <Box flexDirection="row" alignItems="center" columnGap={1}>
           <Button
