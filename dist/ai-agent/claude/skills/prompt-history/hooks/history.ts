@@ -223,6 +223,9 @@ export function timeOf(timestamp: number): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
+/** The local date and time, `YYYY-MM-DD HH:mm`. */
+export const formatStamp = (timestamp: number) => `${dayOf(timestamp)} ${timeOf(timestamp)}`
+
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
 /** A day's heading: 今日, 昨日, or the date (with the year when not this year). */
@@ -332,4 +335,74 @@ export function projectColor(name: string): (typeof PROJECT_COLORS)[number] {
   for (const char of name) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0
 
   return PROJECT_COLORS[hash % PROJECT_COLORS.length] ?? 'suggestion'
+}
+
+/** Lines one row takes in the list, and what a day's heading adds. */
+const ROW_LINES = 1
+const HEADING_LINES = 1
+const GROUP_GAP_LINES = 1
+
+/**
+ * Where a page that starts at `start` ends: as many rows as fit in `budget`
+ * lines, each day's heading (and the blank line before every one but the
+ * first) counted. A page holds one row at least.
+ */
+export function pageEnd(entries: readonly PromptEntry[], start: number, budget: number): number {
+  let used = 0
+  let day: string | undefined
+  let index = start
+
+  for (; index < entries.length; index++) {
+    const entry = entries[index]
+    if (entry === undefined) break
+    const next = dayOf(entry.timestamp)
+    const heading = next === day ? 0 : HEADING_LINES + (day === undefined ? 0 : GROUP_GAP_LINES)
+    if (used + ROW_LINES + heading > budget && index > start) break
+    used += ROW_LINES + heading
+    day = next
+  }
+
+  return index
+}
+
+/** Where the page before the one starting at `start` starts. */
+export function pageStartBefore(
+  entries: readonly PromptEntry[],
+  start: number,
+  budget: number,
+): number {
+  let from = Math.max(0, start - 1)
+  while (from > 0 && pageEnd(entries, from - 1, budget) >= start) from -= 1
+
+  return from
+}
+
+/**
+ * `text` as it reads in `columns` cells: its own lines, each wrapped, up to
+ * `max` of them, with how many more there are.
+ */
+export function wrapLines(
+  text: string,
+  columns: number,
+  max: number,
+): { lines: string[]; hidden: number } {
+  const wrapped: string[] = []
+
+  for (const line of text.trim().split('\n')) {
+    let current = ''
+    let used = 0
+    for (const char of line) {
+      const width = isWide(char.codePointAt(0) ?? 0) ? 2 : 1
+      if (used + width > columns && current !== '') {
+        wrapped.push(current)
+        current = ''
+        used = 0
+      }
+      current += char
+      used += width
+    }
+    wrapped.push(current)
+  }
+
+  return { lines: wrapped.slice(0, max), hidden: Math.max(0, wrapped.length - max) }
 }

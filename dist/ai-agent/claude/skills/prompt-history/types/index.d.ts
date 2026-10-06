@@ -5,7 +5,8 @@ declare module 'claude-code' {
     'prompt-history': {
       query: string
       scope: PromptHistoryScope
-      limit: number
+      /** Where the shown page starts in the matched prompts. */
+      offset: number
       revision: number
       problem: string
     }

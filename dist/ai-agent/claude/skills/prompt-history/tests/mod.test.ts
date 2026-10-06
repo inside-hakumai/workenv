@@ -128,9 +128,45 @@ const openPane = async ($: Engine, surface: 'terminal' | 'desktop') => {
 
 const SURFACES = ['terminal', 'desktop'] as const
 
+type Pane = Awaited<ReturnType<typeof openPane>>
+
+/** An element of a drawn tree, as far as these tests read one. */
+type DrawnNode = { type?: string; props?: { borderStyle?: string }; children?: unknown[] }
+
+const isNode = (child: unknown): child is DrawnNode => typeof child === 'object' && child !== null
+
+/** Every string under `node`, in order. */
+function textOf(node: unknown): string {
+  if (typeof node === 'string') return node
+  if (!isNode(node)) return ''
+
+  return (node.children ?? []).map(textOf).join('')
+}
+
+/**
+ * What the list's Client draws: one entry per line of the list (a row as
+ * "time|prompt|project", a heading as its text, the blank between days as
+ * " "), and the preview's lines.
+ */
+async function viewOf(ui: Pane): Promise<{ lines: string[]; preview: string[] }> {
+  const root = await ui.drawn({ in: 'list' })
+  const items = (isNode(root) ? (root.children ?? []) : []).filter(isNode)
+  const preview = items.find(item => item.props?.borderStyle === 'round')
+
+  return {
+    lines: items
+      .filter(item => item !== preview)
+      .map(item => (item.type === 'Box' ? (item.children ?? []).map(textOf).join('|') : textOf(item))),
+    preview: (preview?.children ?? []).map(textOf),
+  }
+}
+
+/** The rows of the list alone, without headings and blanks. */
+const rowsOf = async (ui: Pane) => (await viewOf(ui)).lines.filter(line => line.includes('|'))
+
 describe('検索ペイン', () => {
   for (const surface of SURFACES) {
-    test(`${surface}: 全プロジェクトの過去プロンプトを新しい順に一覧する`, async ($, on) => {
+    test(`${surface}: 全プロジェクトの過去プロンプトを、日付の見出しの下に新しい順に一覧する`, async ($, on) => {
       // Given
       // 2つのプロジェクトで入力したプロンプトが残っている history.jsonl
       world(
@@ -148,11 +184,11 @@ describe('検索ペイン', () => {
       const ui = await openPane($, surface)
 
       // Then
-      // 両プロジェクトのプロンプトが新しい順に並ぶ
-      const rows = await ui.findAll({ type: 'Button', text: /prompt in/ })
-      expect(rows.map(row => row.text.replace(/^.*  /, ''))).toEqual([
-        'newer prompt in app',
-        'older prompt in docs',
+      // 「今日」の見出しの下に、時刻・本文・プロジェクト名の行が新しい順に並ぶ
+      expect((await viewOf(ui)).lines).toEqual([
+        '今日',
+        '09:55|newer prompt in app|app',
+        '08:30|older prompt in docs|docs',
       ])
     })
 
@@ -171,29 +207,26 @@ describe('検索ペイン', () => {
 
       // Then
       // 語を含むプロンプトだけが残る
-      const rows = await ui.findAll({ type: 'Button', text: /the / })
-      expect(rows.map(row => row.text)).toEqual([expect.stringContaining('fix the login bug')])
+      expect(await rowsOf(ui)).toEqual(['09:50|fix the login bug|app'])
     })
 
-    test(`${surface}: 選んだプロンプトを入力欄に挿入する`, async ($, on) => {
+    test(`${surface}: 行をクリックすると、そのプロンプトを入力欄に挿入する`, async ($, on) => {
       // Given
-      // 検索ペインに、改行を含むプロンプトが表示されている
+      // 検索ペインに、改行を含むプロンプトが表示されている（見出しの次の行）
       const { filled } = world(on, new Map([[HISTORY_PATH, historyLine('line one\nline two', 10, '/w/app')]]))
       const ui = await openPane($, surface)
 
       // When
-      // そのプロンプトの行を押す
-      await ui.press({ key: 'h:0' })
+      // その行をクリックする
+      await ui.pointer({ type: 'down', x: 10, y: 1, button: 'left', in: 'list' })
 
       // Then
       // 改行を含む元の文面がそのまま入力欄に入る
       expect(filled).toEqual(['line one\nline two'])
     })
   }
-})
 
-describe('一覧の見た目', () => {
-  test('日付ごとに見出しを付け、各行に時刻・本文・プロジェクト名を並べる', async ($, on) => {
+  test('日付が変わるところで空行と見出しを挟む', async ($, on) => {
     // Given
     // 今日と昨日に入力したプロンプト
     world(
@@ -208,19 +241,140 @@ describe('一覧の見た目', () => {
     const ui = await openPane($, 'desktop')
 
     // Then
-    // 「今日」「昨日」の見出しが並び、行は時刻・本文のボタン・プロジェクト名の順になる
-    const headings = await ui.findAll({ type: 'Text', text: /^(今日|昨日)$/ })
-    const row = await ui.find({ key: 'row-h:1' })
-    const parts = (row?.children ?? []) as { type: string }[]
-    expect({
-      headings: headings.map(one => one.text),
-      row: row?.text,
-      parts: parts.map(part => part.type),
-    }).toEqual({
-      headings: ['今日', '昨日'],
-      row: '09:30today promptapp',
-      parts: ['Text', 'Box', 'Text'],
+    // 今日の行、空行、昨日の見出しと行の順に並ぶ
+    expect((await viewOf(ui)).lines).toEqual(['今日', '09:30|today prompt|app', ' ', '昨日', '10:00|yesterday prompt|app'])
+  })
+
+  test('Client を描けない描画先では、行をボタンとして並べる', async ($, on) => {
+    // Given
+    // 1件のプロンプトがある
+    world(on, new Map([[HISTORY_PATH, historyLine('plain row', 10, '/w/app')]]))
+    await runCommand($)
+
+    // When
+    // VS Code の描画先でペインを描く
+    const ui = await $.ui.mount({
+      plugin: 'prompt-history',
+      surface: 'vscode',
+      component: 'Pane',
+      requestId: 'prompt-history',
+      props: PANE,
     })
+
+    // Then
+    // その行がボタンとして並ぶ
+    expect((await ui.find({ type: 'Button', text: /plain row/ }))?.text).toBe('09:50  plain row')
+  })
+})
+
+describe('プレビュー', () => {
+  // 見出し（0行目）、newest（1行目）、older（2行目）の順に並ぶ
+  const twoPrompts = () =>
+    new Map([
+      [
+        HISTORY_PATH,
+        [historyLine('older\nsecond line', 20, '/w/app'), historyLine('newest', 10, '/w/app')].join('\n'),
+      ],
+    ])
+
+  for (const surface of SURFACES) {
+    test(`${surface}: 行を選ぶ前は、Enter で挿入される先頭のプロンプトを一番下に出す`, async ($, on) => {
+      // Given
+      // 2件のプロンプトがある
+      world(on, twoPrompts())
+
+      // When
+      // コマンドでペインを開く
+      const ui = await openPane($, surface)
+
+      // Then
+      // プレビューに先頭（一番新しい）プロンプトと、Enter で挿入される旨が出る
+      expect((await viewOf(ui)).preview).toEqual(['2026-10-18 09:50 · app · 先頭（Enter で挿入）', 'newest'])
+    })
+
+    test(`${surface}: マウスを乗せた行の全文を、改行を保ってプレビューに出す`, async ($, on) => {
+      // Given
+      // 2件のプロンプトを開いたペイン
+      world(on, twoPrompts())
+      const ui = await openPane($, surface)
+
+      // When
+      // 古い方の行にマウスを乗せる
+      await ui.pointer({ type: 'move', x: 10, y: 2, in: 'list' })
+
+      // Then
+      // プレビューがその行に変わり、本文の2行がそれぞれ1行として出る
+      expect((await viewOf(ui)).preview).toEqual([
+        '2026-10-18 09:40 · app · マウスの位置（クリックで挿入）',
+        'older',
+        'second line',
+      ])
+    })
+  }
+
+  test('マウスを行からプレビューの上へ動かしても、最後に乗せた行のプレビューを出し続ける', async ($, on) => {
+    // Given
+    // 古い方の行にマウスを乗せたペイン
+    world(on, twoPrompts())
+    const ui = await openPane($, 'desktop')
+    await ui.pointer({ type: 'move', x: 10, y: 2, in: 'list' })
+
+    // When
+    // マウスを下のプレビューの上へ動かす
+    await ui.pointer({ type: 'move', x: 10, y: 5, in: 'list' })
+
+    // Then
+    // プレビューは古い方の行のまま
+    expect((await viewOf(ui)).preview[1]).toBe('older')
+  })
+
+  test('↓キーで次の行を選び、プレビューを切り替える', async ($, on) => {
+    // Given
+    // 2件のプロンプトを開いたペイン
+    world(on, twoPrompts())
+    const ui = await openPane($, 'terminal')
+
+    // When
+    // 一覧で↓キーを押す
+    await ui.key({ key: 'down', in: 'list' })
+
+    // Then
+    // プレビューが2件目の行に変わる
+    expect((await viewOf(ui)).preview[1]).toBe('older')
+  })
+
+  test('検索欄で Enter を押すと、マウスを乗せた行のプロンプトが入力欄に入る', async ($, on) => {
+    // Given
+    // 古い方の行にマウスを乗せたペイン
+    const { filled } = world(on, twoPrompts())
+    const ui = await openPane($, 'desktop')
+    await ui.pointer({ type: 'move', x: 10, y: 2, in: 'list' })
+
+    // When
+    // 検索欄で Enter を押す
+    await ui.input({ key: 'query', text: '', kind: 'submit' })
+
+    // Then
+    // マウスを乗せた古い方のプロンプトが入る
+    expect(filled).toEqual(['older\nsecond line'])
+  })
+
+  test('一覧がペインに収まらないときは、ページを分けて送れるようにする', async ($, on) => {
+    // Given
+    // 同じ日に入力した30件のプロンプト
+    const lines = Array.from({ length: 30 }, (_, i) => historyLine(`prompt ${i}`, 30 - i, '/w/app'))
+    world(on, new Map([[HISTORY_PATH, lines.join('\n')]]))
+    const ui = await openPane($, 'terminal')
+    const firstPage = await rowsOf(ui)
+
+    // When
+    // 「古い方へ」を押す
+    await ui.press({ key: 'page-next' })
+
+    // Then
+    // 次のページは、最初のページの最後の次のプロンプトから始まる
+    const number = (row: string | undefined) => Number(row?.split('|')[1]?.replace('prompt ', ''))
+    expect(number((await rowsOf(ui))[0])).toBe(number(firstPage.at(-1)) - 1)
   })
 })
 
@@ -249,11 +403,7 @@ describe('デスクトップアプリのセッション', () => {
 
     // Then
     // CLI とデスクトップの両方のプロンプトが新しい順に並ぶ
-    const rows = await ui.findAll({ type: 'Button', text: /typed in/ })
-    expect(rows.map(row => row.text.replace(/^.*  /, ''))).toEqual([
-      'typed in the desktop app',
-      'typed in the terminal',
-    ])
+    expect(await rowsOf(ui)).toEqual(['09:30|typed in the desktop app|app', '09:00|typed in the terminal|app'])
   })
 
   test('トランスクリプトのプロンプトを独自フォルダに写し、トランスクリプトが消えても残す', async ($, on) => {
@@ -274,7 +424,7 @@ describe('デスクトップアプリのセッション', () => {
 
     // Then
     // 消えたトランスクリプトのプロンプトも一覧に出る
-    expect(await ui.find({ type: 'Button', text: /kept after cleanup/ })).toBeDefined()
+    expect(await rowsOf(ui)).toEqual(['09:30|kept after cleanup|app'])
   })
 
   test('前回から変わっていないトランスクリプトは読み直さない', async ($, on) => {
@@ -351,6 +501,6 @@ describe('プロンプトの記録', () => {
 
     // Then
     // ペインの一覧に表示される
-    expect(await ui.find({ type: 'Button', text: /brand new prompt/ })).toBeDefined()
+    expect(await rowsOf(ui)).toEqual(['10:00|brand new prompt|app'])
   })
 })

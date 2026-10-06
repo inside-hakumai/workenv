@@ -6,9 +6,12 @@ import {
   dayLabel,
   dayOf,
   filterEntries,
+  formatStamp,
   highlight,
   mergeEntries,
   oneLine,
+  pageEnd,
+  pageStartBefore,
   parseHistory,
   parseLog,
   parseTranscript,
@@ -19,14 +22,25 @@ import {
   timeOf,
   truncate,
   widthOf,
+  wrapLines,
   TRANSCRIPT_MARK,
   type LogRecord,
   type PromptEntry,
 } from './history'
+import type { ListItem, ListMessage, ListProps, Preview } from './list'
 
 const PANE = 'prompt-history'
 const COMMAND = 'prompt-history'
-const PAGE = 50
+/** Lines the preview may give the prompt's own text. */
+const PREVIEW_LINES = 6
+/**
+ * Lines the pane spends outside the list: the search field, the row of scope
+ * and pager, the blank above the list, and the preview (its blank, border,
+ * heading, text and the line saying how much is left out).
+ */
+const CHROME_LINES = 2 + 1 + (1 + 2 + 1 + PREVIEW_LINES + 1)
+/** Rows a page holds at the least, however short the pane. */
+const MIN_PAGE_LINES = 5
 /** The widest a project label gets; longer names are cut. */
 const PROJECT_COLUMNS = 14
 /** Transcripts one grep reads: its output stays far under the 4 MiB it keeps. */
@@ -37,7 +51,7 @@ const RECORDED_ORIGINS = new Set(['composer', 'bridge', 'sdk', 'unclassified'])
 
 const query = atom({ plugin: 'prompt-history', key: 'query' } as const, '')
 const scope = atom({ plugin: 'prompt-history', key: 'scope' } as const, 'all')
-const limit = atom({ plugin: 'prompt-history', key: 'limit' } as const, PAGE)
+const offset = atom({ plugin: 'prompt-history', key: 'offset' } as const, 0)
 const revision = atom({ plugin: 'prompt-history', key: 'revision' } as const, 0)
 const problem = atom({ plugin: 'prompt-history', key: 'problem' } as const, '')
 
@@ -72,6 +86,8 @@ const monthOf = (timestamp: number) => {
 /** The merged prompts, loaded by the command; a reload starts it over. */
 let entries: PromptEntry[] | undefined
 let writes = Promise.resolve()
+/** The row the list's pointer or keys last picked: what Enter inserts. */
+let picked: string | undefined
 
 /** Reads every `.jsonl` file under `root`, one folder level down. */
 async function readRecords(
@@ -223,7 +239,8 @@ export const register: Register = on => {
 
   on('command.run', { command: COMMAND }, async ($, e) => {
     await update($, query, () => e.args.trim())
-    await update($, limit, () => PAGE)
+    await update($, offset, () => 0)
+    picked = undefined
     await load($)
     const opened = await $.ui.open({
       id: PANE,
@@ -265,11 +282,22 @@ export const register: Register = on => {
     return entered
   }).catch(($, e, next) => next(e)) // recording never holds a prompt back
 
+  on('ui.message', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    const message = e.data as ListMessage
+    if (message.type === 'pick') picked = message.id
+    if (message.type === 'insert') {
+      const entry = entries?.find(one => one.id === message.id)
+      if (entry) await insert($, entry, e.surface)
+    }
+
+    return {}
+  })
+
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     await read($, revision)
     const text = await read($, query)
     const where: PromptHistoryScope = await read($, scope)
-    const shown = await read($, limit)
+    const start = await read($, offset)
     const trouble = await read($, problem)
 
     if (e.surface === 'mobile') {
@@ -282,123 +310,146 @@ export const register: Register = on => {
     const all = entries ?? []
     const project = where === 'project' ? await $.session.root() : undefined
     const matched = filterEntries(all, text, project)
-    const rows = matched.slice(0, shown)
     const now = await $.clock.now()
 
-    // a row is "HH:mm  prompt  project" inside the pane's padding: the time
-    // in a fixed-width face lines the prompts up on every surface
+    // a page holds what fits above the preview, so the preview stays in view
+    const budget = Math.max(
+      MIN_PAGE_LINES,
+      e.props.scroll.bodyRows - CHROME_LINES - (trouble === '' ? 0 : 1),
+    )
+    const from = Math.min(start, Math.max(0, matched.length - 1))
+    const to = pageEnd(matched, from, budget)
+    const rows = matched.slice(from, to)
+
+    // a row is "HH:mm  prompt  project": the time in a fixed-width face
+    // lines the prompts up
     const promptColumns = (label: string) =>
       Math.max(10, e.props.bodyColumns - 2 - (5 + 2 + 2 + widthOf(label)))
+    const previewColumns = Math.max(10, e.props.bodyColumns - 2 - 4)
 
-    const days: { day: string; label: string; rows: PromptEntry[] }[] = []
+    const items: ListItem[] = []
+    const previews: Record<string, Preview> = {}
+    let day: string | undefined
     for (const entry of rows) {
-      const day = dayOf(entry.timestamp)
-      const last = days.at(-1)
-      if (last?.day === day) last.rows.push(entry)
-      else days.push({ day, label: dayLabel(entry.timestamp, now), rows: [entry] })
+      if (dayOf(entry.timestamp) !== day) {
+        if (day !== undefined) items.push({ kind: 'gap' })
+        day = dayOf(entry.timestamp)
+        items.push({ kind: 'heading', text: dayLabel(entry.timestamp, now) })
+      }
+      const name = projectName(entry.project)
+      const label = widthOf(name) > PROJECT_COLUMNS ? truncate(name, PROJECT_COLUMNS) : name
+      items.push({
+        kind: 'row',
+        id: entry.id,
+        time: timeOf(entry.timestamp),
+        line: highlight(truncate(oneLine(entry.text), promptColumns(label)), text),
+        project: label,
+        color: projectColor(name),
+      })
+      const body = wrapLines(entry.text, previewColumns, PREVIEW_LINES)
+      previews[entry.id] = {
+        heading: `${formatStamp(entry.timestamp)} · ${name}`,
+        lines: body.lines.map(line => highlight(line, text)),
+        hidden: body.hidden,
+      }
     }
 
-    const setScope = (next: PromptHistoryScope) => () => update($, scope, () => next)
+    const restart = () => {
+      picked = undefined
+
+      return update($, offset, () => 0)
+    }
+    const setScope = (next: PromptHistoryScope) => () =>
+      update($, scope, () => next).then(restart)
+    const turnTo = (next: number) => () => {
+      picked = undefined
+
+      return update($, offset, () => next)
+    }
     const count =
       text.trim() === '' && where === 'all'
         ? `${all.length.toLocaleString()} 件`
         : `${matched.length.toLocaleString()} 件 / ${all.length.toLocaleString()} 件中`
+    const emptyText =
+      entries === undefined
+        ? `/${COMMAND} で読み込みます。`
+        : matched.length === 0
+          ? '一致するプロンプトはありません。'
+          : null
+    const list: ListProps = {
+      page: `${text}\u0000${where}\u0000${from}`,
+      items,
+      previews,
+      firstId: rows[0]?.id ?? null,
+      emptyText,
+    }
 
     return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Box flexDirection="column">
-          <Input
-            key="query"
-            label="検索 "
-            placeholder="空白区切りで AND 検索"
-            value={text}
-            submitLabel="先頭を挿入"
-            autoFocus
-            onInput={value =>
-              update($, query, () => value).then(() => update($, limit, () => PAGE))
-            }
-            onSubmit={(_, input) => {
-              const first = rows[0]
-              if (first) void insert($, first, input.surface)
-            }}
-          />
-          <Box flexDirection="row" alignItems="center" columnGap={1}>
-            <Button
-              key="scope-all"
-              label="全プロジェクト"
-              variant={where === 'all' ? 'primary' : 'secondary'}
-              onPress={setScope('all')}
-            />
-            <Button
-              key="scope-project"
-              label="このプロジェクト"
-              variant={where === 'project' ? 'primary' : 'secondary'}
-              onPress={setScope('project')}
-            />
-            <Text dimColor>{count}</Text>
-          </Box>
-          {trouble !== '' && <Text color="error">{trouble}</Text>}
-        </Box>
-
-        {entries === undefined && <Text dimColor>/{COMMAND} で読み込みます。</Text>}
-        {entries !== undefined && matched.length === 0 && (
-          <Text dimColor>一致するプロンプトはありません。</Text>
-        )}
-
-        {days.map(({ day, label, rows: dayRows }) => (
-          <Box key={`day-${day}`} flexDirection="column">
-            <Text weight="semibold" size="footnote" dimColor>
-              {label}
-            </Text>
-            {dayRows.map(entry => {
-              const name = projectName(entry.project)
-              const label = widthOf(name) > PROJECT_COLUMNS ? truncate(name, PROJECT_COLUMNS) : name
-              const line = truncate(oneLine(entry.text), promptColumns(label))
-              const onPress = (press: { surface: Parameters<typeof insert>[2] }) =>
-                insert($, entry, press.surface)
-
-              return (
-                <Box key={`row-${entry.id}`} flexDirection="row" columnGap={2}>
-                  <Text dimColor mono>
-                    {timeOf(entry.timestamp)}
-                  </Text>
-                  <Box flexGrow={1} flexShrink={1}>
-                    {e.surface === 'terminal' ? (
-                      // the terminal draws a Button's Text children styled
-                      <Button key={entry.id} plain onPress={onPress}>
-                        {highlight(line, text).map(part =>
-                          part.isMatch ? (
-                            <Text weight="semibold" color="claude">
-                              {part.text}
-                            </Text>
-                          ) : (
-                            part.text
-                          ),
-                        )}
-                      </Button>
-                    ) : (
-                      // a desktop draws a native button from the label alone
-                      <Button key={entry.id} plain label={line} onPress={onPress} />
-                    )}
-                  </Box>
-                  <Text color={projectColor(name)} size="footnote">
-                    {label}
-                  </Text>
-                </Box>
-              )
-            })}
-          </Box>
-        ))}
-
-        {matched.length > rows.length && (
+      <Box flexDirection="column" paddingX={1}>
+        <Input
+          key="query"
+          label="検索 "
+          placeholder="空白区切りで AND 検索"
+          value={text}
+          submitLabel="挿入"
+          autoFocus
+          onInput={value => update($, query, () => value).then(restart)}
+          onSubmit={(_, input) => {
+            const entry = rows.find(one => one.id === picked) ?? rows[0]
+            if (entry) void insert($, entry, input.surface)
+          }}
+        />
+        <Box flexDirection="row" alignItems="center" columnGap={1}>
           <Button
-            key="more"
-            plain
-            dimColor
-            label={`さらに表示（残り ${(matched.length - rows.length).toLocaleString()} 件）`}
-            onPress={() => update($, limit, n => n + PAGE)}
+            key="scope-all"
+            label="全プロジェクト"
+            variant={where === 'all' ? 'primary' : 'secondary'}
+            onPress={setScope('all')}
           />
-        )}
+          <Button
+            key="scope-project"
+            label="このプロジェクト"
+            variant={where === 'project' ? 'primary' : 'secondary'}
+            onPress={setScope('project')}
+          />
+          <Text dimColor>{count}</Text>
+          <Box flexGrow={1} />
+          {from > 0 && (
+            <Button
+              key="page-prev"
+              plain
+              label="← 新しい方へ"
+              onPress={turnTo(pageStartBefore(matched, from, budget))}
+            />
+          )}
+          {matched.length > rows.length && (
+            <Text dimColor>
+              {(from + 1).toLocaleString()}–{to.toLocaleString()} 件目
+            </Text>
+          )}
+          {to < matched.length && (
+            <Button key="page-next" plain label="古い方へ →" onPress={turnTo(to)} />
+          )}
+        </Box>
+        {trouble !== '' && <Text color="error">{trouble}</Text>}
+
+        <Box flexDirection="column" marginTop={1}>
+          {e.surface === 'terminal' || e.surface === 'desktop'
+            ? (() => {
+                const { Client } = $.ui.resolve(e)
+
+                return <Client key="list" module="./list.tsx" props={list} />
+              })()
+            : // a surface with no Client gets the rows as plain buttons
+              rows.map(entry => (
+                <Button
+                  key={entry.id}
+                  plain
+                  label={`${timeOf(entry.timestamp)}  ${truncate(oneLine(entry.text), promptColumns(''))}`}
+                  onPress={press => insert($, entry, press.surface)}
+                />
+              ))}
+        </Box>
       </Box>
     )
   })

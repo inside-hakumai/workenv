@@ -7,12 +7,15 @@ import {
   highlight,
   mergeEntries,
   oneLine,
+  pageEnd,
+  pageStartBefore,
   parseHistory,
   parseLog,
   parseTranscript,
   projectName,
   splitGrepOutput,
   truncate,
+  wrapLines,
   type PromptEntry,
 } from '../hooks/history'
 
@@ -414,5 +417,73 @@ describe('dayLabel', () => {
     // Then
     // 年から始まる
     expect(label).toBe('2025年12月31日（水）')
+  })
+})
+
+describe('ページ分け', () => {
+  const day = (date: number, hour: number) => new Date(2026, 9, date, hour).getTime()
+  // 18日に3件、17日に2件（新しい順）
+  const entries = [
+    entry({ id: 'a', text: 'a', timestamp: day(18, 12) }),
+    entry({ id: 'b', text: 'b', timestamp: day(18, 11) }),
+    entry({ id: 'c', text: 'c', timestamp: day(18, 10) }),
+    entry({ id: 'd', text: 'd', timestamp: day(17, 12) }),
+    entry({ id: 'e', text: 'e', timestamp: day(17, 11) }),
+  ]
+
+  test('日付の見出しと、日付の間の空行も行数に数えて1ページに収める', () => {
+    // When
+    // 6行分の高さで先頭からページを切る
+    const end = pageEnd(entries, 0, 6)
+
+    // Then
+    // 見出し1行＋3件、空行と次の見出しで2行を使い、残り0行なので4件目は入らない
+    expect(end).toBe(3)
+  })
+
+  test('高さが1件分に満たなくても、1ページに少なくとも1件は入れる', () => {
+    // When
+    // 1行分の高さでページを切る
+    const end = pageEnd(entries, 0, 1)
+
+    // Then
+    // 先頭の1件だけが入る
+    expect(end).toBe(1)
+  })
+
+  test('前のページは、次のページの先頭の直前で終わる', () => {
+    // Given
+    // 6行分の高さで2ページ目が始まる位置
+    const second = pageEnd(entries, 0, 6)
+
+    // When
+    // 2ページ目から前のページの先頭を求める
+    const first = pageStartBefore(entries, second, 6)
+
+    // Then
+    // 1ページ目の先頭に戻る
+    expect(first).toBe(0)
+  })
+})
+
+describe('wrapLines', () => {
+  test('元の改行を保ったまま、幅を超える行を折り返す', () => {
+    // When
+    // 全角を含む2行の文を6セル幅で折り返す
+    const wrapped = wrapLines('あいうえお\nabc', 6, 10)
+
+    // Then
+    // 1行目が全角3文字ずつに分かれ、2行目はそのまま残る
+    expect(wrapped).toEqual({ lines: ['あいう', 'えお', 'abc'], hidden: 0 })
+  })
+
+  test('行数の上限を超えた分は、隠した行数として返す', () => {
+    // When
+    // 5行の文を2行までに収める
+    const wrapped = wrapLines('1\n2\n3\n4\n5', 10, 2)
+
+    // Then
+    // 先頭の2行と、隠した3行が返る
+    expect(wrapped).toEqual({ lines: ['1', '2'], hidden: 3 })
   })
 })
