@@ -114,7 +114,7 @@ const runCommand = ($: Engine) =>
     presentation: { isFullscreen: true, columns: 160 },
   })
 
-const openPane = async ($: Engine, surface: 'terminal' | 'desktop') => {
+const openPane = async ($: Engine, surface: 'terminal' | 'desktop', props = PANE) => {
   await runCommand($)
 
   return $.ui.mount({
@@ -122,7 +122,7 @@ const openPane = async ($: Engine, surface: 'terminal' | 'desktop') => {
     surface,
     component: 'Pane',
     requestId: 'prompt-history',
-    props: PANE,
+    props,
   })
 }
 
@@ -131,7 +131,11 @@ const SURFACES = ['terminal', 'desktop'] as const
 type Pane = Awaited<ReturnType<typeof openPane>>
 
 /** An element of a drawn tree, as far as these tests read one. */
-type DrawnNode = { type?: string; props?: { borderStyle?: string }; children?: unknown[] }
+type DrawnNode = {
+  type?: string
+  props?: { borderStyle?: string; backgroundColor?: string; inverse?: boolean; bold?: boolean }
+  children?: unknown[]
+}
 
 const isNode = (child: unknown): child is DrawnNode => typeof child === 'object' && child !== null
 
@@ -146,20 +150,33 @@ function textOf(node: unknown): string {
 /**
  * What the list's Client draws: one entry per line of the list (a row as
  * "time|prompt|project", a heading as its text, the blank between days as
- * " "), and the preview's lines.
+ * " ") without the blank lines that fill the page, how many lines the list
+ * takes with them, its row elements, and the preview's lines.
  */
-async function viewOf(ui: Pane): Promise<{ lines: string[]; preview: string[] }> {
+async function viewOf(
+  ui: Pane,
+): Promise<{ lines: string[]; height: number; rows: DrawnNode[]; preview: string[] }> {
   const root = await ui.drawn({ in: 'list' })
   const items = (isNode(root) ? (root.children ?? []) : []).filter(isNode)
   const preview = items.find(item => item.props?.borderStyle === 'round')
+  const list = items.filter(item => item !== preview)
+  const lines = list.map(item =>
+    item.type === 'Box' ? (item.children ?? []).map(textOf).join('|') : textOf(item),
+  )
+  while (lines.at(-1) === ' ') lines.pop()
 
   return {
-    lines: items
-      .filter(item => item !== preview)
-      .map(item => (item.type === 'Box' ? (item.children ?? []).map(textOf).join('|') : textOf(item))),
+    lines,
+    height: list.length,
+    rows: list.filter(item => item.type === 'Box'),
     preview: (preview?.children ?? []).map(textOf),
   }
 }
+
+/** Lines the preview takes below the list: its blank, border and 3+2 lines. */
+const PREVIEW_BOX_LINES = 1 + 2 + 1 + 3 + 1
+/** Lines a page takes in a pane of PANE's height: its rows less the chrome. */
+const PAGE_LINES = 30 - (2 + 1 + PREVIEW_BOX_LINES)
 
 /** The rows of the list alone, without headings and blanks. */
 const rowsOf = async (ui: Pane) => (await viewOf(ui)).lines.filter(line => line.includes('|'))
@@ -357,6 +374,119 @@ describe('プレビュー', () => {
     // Then
     // マウスを乗せた古い方のプロンプトが入る
     expect(filled).toEqual(['older\nsecond line'])
+  })
+
+  test('プレビューは本文を3行まで出し、残りの行数を添える', async ($, on) => {
+    // Given
+    // 5行のプロンプト
+    world(on, new Map([[HISTORY_PATH, historyLine('1\n2\n3\n4\n5', 10, '/w/app')]]))
+
+    // When
+    // コマンドでペインを開く
+    const ui = await openPane($, 'desktop')
+
+    // Then
+    // 先頭の3行と、隠した2行の数が出る
+    expect((await viewOf(ui)).preview.slice(1)).toEqual(['1', '2', '3', '…ほか 2 行'])
+  })
+
+  const BACKGROUNDS = {
+    terminal: 'userMessageBackgroundHover',
+    desktop: 'rgba(128, 128, 128, 0.18)',
+  } as const
+
+  for (const surface of SURFACES) {
+    test(`${surface}: 選択中の行だけ、行全体にその描画先で描ける控えめな背景色を付ける`, async ($, on) => {
+      // Given
+      // 2件のプロンプトを開いたペイン
+      world(on, twoPrompts())
+      const ui = await openPane($, surface)
+
+      // When
+      // 古い方の行にマウスを乗せる
+      await ui.pointer({ type: 'move', x: 10, y: 2, in: 'list' })
+
+      // Then
+      // - 古い方の行の Box だけに背景色が付く（CLI はテーマの色、デスクトップは半透明の灰色）
+      // - 時刻の反転と本文の太字は使わない
+      const { rows } = await viewOf(ui)
+      const texts = rows.flatMap(row => (row.children ?? []).filter(isNode))
+      expect({
+        backgrounds: rows.map(row => row.props?.backgroundColor),
+        isPlain: texts.every(text => text.props?.inverse !== true && text.props?.bold !== true),
+      }).toEqual({ backgrounds: [undefined, BACKGROUNDS[surface]], isPlain: true })
+    })
+  }
+
+  test('件数に関わらず一覧が1ページ分の行数を占め、プレビューの位置が変わらない', async ($, on) => {
+    // Given
+    // 2件のプロンプトを開いた、ターミナルのペイン
+    world(on, twoPrompts())
+    const ui = await openPane($, 'terminal')
+    const before = await viewOf(ui)
+
+    // When
+    // 1件だけに絞り込む
+    await ui.input({ key: 'query', text: 'newest', kind: 'change' })
+
+    // Then
+    // 一覧は絞り込む前も後も1ページ分の行数を占める
+    const after = await viewOf(ui)
+    expect({ before: before.height, after: after.height, rows: after.lines }).toEqual({
+      before: PAGE_LINES,
+      after: PAGE_LINES,
+      rows: ['今日', '09:50|newest|app'],
+    })
+  })
+
+  test('一致するプロンプトがないときも、一覧は1ページ分の行数を占める', async ($, on) => {
+    // Given
+    // 2件のプロンプトを開いた、ターミナルのペイン
+    world(on, twoPrompts())
+    const ui = await openPane($, 'terminal')
+
+    // When
+    // どれにも一致しない語で絞り込む
+    await ui.input({ key: 'query', text: 'nothing matches', kind: 'change' })
+
+    // Then
+    // 「一致するプロンプトはありません。」と空行で1ページ分になる
+    const { lines, height } = await viewOf(ui)
+    expect({ lines, height }).toEqual({ lines: ['一致するプロンプトはありません。'], height: PAGE_LINES })
+  })
+
+  test('デスクトップでも、ペインの行数からプレビューなどの分を引いた行数を1ページにする', async ($, on) => {
+    // Given
+    // 2件のプロンプト
+    world(on, twoPrompts())
+
+    // When
+    // デスクトップで、65行のペインを開く
+    const ui = await openPane($, 'desktop', { ...PANE, scroll: { offset: 0, bodyRows: 65 } })
+
+    // Then
+    // 一覧は65行から、検索欄・範囲の行・空行とプレビューの分を引いた行数を占める
+    expect((await viewOf(ui)).height).toBe(65 - (2 + 1 + PREVIEW_BOX_LINES))
+  })
+
+  test('埋めた空行の上でマウスを動かしてもクリックしても、プレビューも入力欄も変わらない', async ($, on) => {
+    // Given
+    // 2件のプロンプトを開いたペイン（行は1・2行目、3行目から下は空行）
+    const { filled } = world(on, twoPrompts())
+    const ui = await openPane($, 'desktop')
+
+    // When
+    // 空行の上にマウスを乗せてからクリックする
+    await ui.pointer({ type: 'move', x: 10, y: 10, in: 'list' })
+    await ui.pointer({ type: 'down', x: 10, y: 10, button: 'left', in: 'list' })
+
+    // Then
+    // - プレビューは先頭のまま
+    // - 入力欄には何も入らない
+    expect({ preview: (await viewOf(ui)).preview[0], filled }).toEqual({
+      preview: expect.stringMatching(/先頭（Enter で挿入）$/),
+      filled: [],
+    })
   })
 
   test('一覧がペインに収まらないときは、ページを分けて送れるようにする', async ($, on) => {

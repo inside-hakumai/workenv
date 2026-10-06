@@ -18,6 +18,10 @@ export type ListProps = {
   /** Changes with the query, scope and page: a new page drops the pick. */
   page: string
   items: ListItem[]
+  /** Blank lines after the items, so a short page takes a whole page's room. */
+  fill: number
+  /** The picked row's background, as this surface resolves colors. */
+  pickedBackground: string
   previews: Record<string, Preview>
   /** What Enter in the search field inserts while nothing is picked. */
   firstId: string | null
@@ -54,7 +58,8 @@ const List: ClientModule<ListProps, State> = (props, surface) => {
   }
 
   surface.onPointer((event: ClientPointerEvent) => {
-    // the pointer resting on the preview keeps the last row it passed
+    // the pointer resting on the fill or the preview keeps the last row it
+    // passed: neither is an item
     const item = props.items[event.y]
     if (item?.kind !== 'row') return
     if (event.type === 'move' || event.type === 'enter') pick(item.id)
@@ -85,12 +90,12 @@ const List: ClientModule<ListProps, State> = (props, surface) => {
         const isShown = item.id === shown
 
         return (
-          <Box flexDirection="row" columnGap={2}>
-            <Text dimColor={!isShown} inverse={isShown} mono>
+          <Box flexDirection="row" columnGap={2} backgroundColor={isShown ? props.pickedBackground : undefined}>
+            <Text dimColor={!isShown} mono>
               {item.time}
             </Text>
             <Box flexGrow={1} flexShrink={1}>
-              <Text wrap="truncate-end" bold={isShown}>
+              <Text wrap="truncate-end">
                 {highlighted(Text, item.line)}
               </Text>
             </Box>
@@ -98,6 +103,9 @@ const List: ClientModule<ListProps, State> = (props, surface) => {
           </Box>
         )
       })}
+      {Array.from({ length: props.fill }, () => (
+        <Text> </Text>
+      ))}
 
       {preview && (
         <Box

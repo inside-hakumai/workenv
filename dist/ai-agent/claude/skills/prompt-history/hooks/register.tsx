@@ -32,13 +32,24 @@ import type { ListItem, ListMessage, ListProps, Preview } from './list'
 const PANE = 'prompt-history'
 const COMMAND = 'prompt-history'
 /** Lines the preview may give the prompt's own text. */
-const PREVIEW_LINES = 6
+const PREVIEW_LINES = 3
+/** The preview's lines: its blank, border, heading, text and what is left out. */
+const PREVIEW_BOX_LINES = 1 + 2 + 1 + PREVIEW_LINES + 1
 /**
  * Lines the pane spends outside the list: the search field, the row of scope
- * and pager, the blank above the list, and the preview (its blank, border,
- * heading, text and the line saying how much is left out).
+ * and pager, the blank above the list, and the preview.
  */
-const CHROME_LINES = 2 + 1 + (1 + 2 + 1 + PREVIEW_LINES + 1)
+const CHROME_LINES = 2 + 1 + PREVIEW_BOX_LINES
+/**
+ * The picked row's background. The terminal resolves any key of the theme,
+ * so it takes the one for a hovered message, faint in light and dark alike; a
+ * desktop resolves only the ThemeKey names, none of them a faint neutral, but
+ * draws a CSS color, so it takes a grey that lets either theme show through.
+ */
+const PICKED_BACKGROUND = {
+  terminal: 'userMessageBackgroundHover',
+  desktop: 'rgba(128, 128, 128, 0.18)',
+} as const
 /** Rows a page holds at the least, however short the pane. */
 const MIN_PAGE_LINES = 5
 /** The widest a project label gets; longer names are cut. */
@@ -379,6 +390,9 @@ export const register: Register = on => {
     const list: ListProps = {
       page: `${text}\u0000${where}\u0000${from}`,
       items,
+      // the list takes a whole page's lines, so the preview stays put below it
+      fill: Math.max(0, budget - items.length - (emptyText === null ? 0 : 1)),
+      pickedBackground: e.surface === 'desktop' ? PICKED_BACKGROUND.desktop : PICKED_BACKGROUND.terminal,
       previews,
       firstId: rows[0]?.id ?? null,
       emptyText,
