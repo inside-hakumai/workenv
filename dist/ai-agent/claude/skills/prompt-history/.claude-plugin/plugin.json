@@ -1,0 +1,6 @@
+{
+  "name": "prompt-history",
+  "version": "0.1.0",
+  "description": "Search prompts from every project and session in a pane, and insert one into the prompt box",
+  "types": "./types/index.d.ts"
+}
